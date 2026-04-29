@@ -1,0 +1,403 @@
+[
+  {
+    "id": 1,
+    "invoiceNo": "AHC/0002/25-26",
+    "customerName": "Shivshakti Stores Private Limited",
+    "paymentDate": "2026-01-05",
+    "amountPaid": 300000,
+    "paymentMethod": "RTGS",
+    "reference": "V509573",
+    "status": "Completed",
+    "notes": "Part payment"
+  },
+  {
+    "id": 2,
+    "invoiceNo": "AHC/0002/25-26",
+    "customerName": "Shivshakti Stores Private Limited",
+    "paymentDate": "2026-01-09",
+    "amountPaid": 49869,
+    "paymentMethod": "NEFT",
+    "reference": "X70482461",
+    "status": "Completed",
+    "notes": "Part payment"
+  },
+  {
+    "id": 3,
+    "invoiceNo": "AHC/0010/25-26",
+    "customerName": "New Sharda Sanitary Mahal",
+    "paymentDate": "2026-01-12",
+    "amountPaid": 39801,
+    "paymentMethod": "NEFT",
+    "reference": "S84939170",
+    "status": "Completed",
+    "notes": "Part payment"
+  },
+  {
+    "id": 4,
+    "invoiceNo": "AHC/0008/25-26",
+    "customerName": "M/s Maa Bhawani Traders",
+    "paymentDate": "2026-01-14",
+    "amountPaid": 103850,
+    "paymentMethod": "NEFT",
+    "reference": "U12247670",
+    "status": "Completed"
+  },
+  {
+    "id": 5,
+    "invoiceNo": "AHC/0009/25-26",
+    "customerName": "M/s Maa Bhawani Traders",
+    "paymentDate": "2026-01-14",
+    "amountPaid": 56762,
+    "paymentMethod": "NEFT",
+    "reference": "U12247670",
+    "status": "Completed"
+  },
+  {
+    "id": 6,
+    "invoiceNo": "AHC/0004/25-26",
+    "customerName": "Kamakhya Traders",
+    "paymentDate": "2026-01-14",
+    "amountPaid": 50000,
+    "paymentMethod": "NEFT",
+    "reference": "U15773803",
+    "status": "Completed",
+    "notes": "Part payment"
+  },
+  {
+    "id": 7,
+    "invoiceNo": "AHC/0006/25-26",
+    "customerName": "Sri Sai Nath Traders",
+    "paymentDate": "2026-01-14",
+    "amountPaid": 100000,
+    "paymentMethod": "NEFT",
+    "reference": "U15915232",
+    "status": "Completed",
+    "notes": "Part payment"
+  },
+  {
+    "id": 8,
+    "invoiceNo": "AHC/0004/25-26",
+    "customerName": "Kamakhya Traders",
+    "paymentDate": "2026-01-16",
+    "amountPaid": 50000,
+    "paymentMethod": "NEFT",
+    "reference": "V25520288",
+    "status": "Completed",
+    "notes": "Part payment"
+  },
+  {
+    "id": 9,
+    "invoiceNo": "AHC/0012/25-26",
+    "customerName": "M/s Krishi Auzar Bhandar",
+    "paymentDate": "2026-01-17",
+    "amountPaid": 67884,
+    "paymentMethod": "NEFT",
+    "reference": "V89902600",
+    "status": "Completed"
+  },
+  {
+    "id": 10,
+    "invoiceNo": "AHC/0013/25-26",
+    "customerName": "M/s Krishi Auzar Bhandar",
+    "paymentDate": "2026-01-17",
+    "amountPaid": 77416,
+    "paymentMethod": "NEFT",
+    "reference": "V89902600",
+    "status": "Completed"
+  },
+  {
+    "id": 11,
+    "invoiceNo": "AHC/0004/25-26",
+    "customerName": "Kamakhya Traders",
+    "paymentDate": "2026-01-21",
+    "amountPaid": 11806,
+    "paymentMethod": "NEFT",
+    "reference": "Y45080538",
+    "status": "Completed",
+    "notes": "Part payment"
+  },
+  {
+    "id": 12,
+    "invoiceNo": "AHC/0005/25-26",
+    "customerName": "Kamakhya Traders",
+    "paymentDate": "2026-01-21",
+    "amountPaid": 8194,
+    "paymentMethod": "NEFT",
+    "reference": "Y45080538",
+    "status": "Completed",
+    "notes": "Part payment"
+  },
+  {
+    "id": 13,
+    "invoiceNo": "AHC/0006/25-26",
+    "customerName": "Sri Sai Nath Traders",
+    "paymentDate": "2026-01-21",
+    "amountPaid": 8366,
+    "paymentMethod": "NEFT",
+    "reference": "Y82173018",
+    "status": "Completed",
+    "notes": "Part payment"
+  },
+  {
+    "id": 14,
+    "invoiceNo": "AHC/0007/25-26",
+    "customerName": "Sri Sai Nath Traders",
+    "paymentDate": "2026-01-21",
+    "amountPaid": 22481,
+    "paymentMethod": "NEFT",
+    "reference": "Y82173018",
+    "status": "Completed"
+  },
+  {
+    "id": 15,
+    "invoiceNo": "AHC/0017/25-26",
+    "customerName": "M/s Maa Bhawani Traders",
+    "paymentDate": "2026-01-28",
+    "amountPaid": 212658,
+    "paymentMethod": "Transfer",
+    "reference": "A1106085",
+    "status": "Completed"
+  },
+  {
+    "id": 16,
+    "invoiceNo": "AHC/0018/25-26",
+    "customerName": "L.P.B Agency",
+    "paymentDate": "2026-02-03",
+    "amountPaid": 211392,
+    "paymentMethod": "RTGS",
+    "reference": "S86151330",
+    "status": "Completed"
+  },
+  {
+    "id": 17,
+    "invoiceNo": "AHC/0019/25-26",
+    "customerName": "L.P.B Agency",
+    "paymentDate": "2026-02-03",
+    "amountPaid": 288435,
+    "paymentMethod": "RTGS",
+    "reference": "S86151330",
+    "status": "Completed"
+  },
+  {
+    "id": 18,
+    "invoiceNo": "AHC/0022/25-26",
+    "customerName": "New Sharda Sanitary Mahal",
+    "paymentDate": "2026-02-03",
+    "amountPaid": 53241,
+    "paymentMethod": "NEFT",
+    "reference": "T7837732",
+    "status": "Completed"
+  },
+  {
+    "id": 19,
+    "invoiceNo": "AHC/0014/25-26",
+    "customerName": "Kamal Prasad Pawan Kumar",
+    "paymentDate": "2026-02-06",
+    "amountPaid": 52579,
+    "paymentMethod": "NEFT",
+    "reference": "T77777365",
+    "status": "Completed"
+  },
+  {
+    "id": 20,
+    "invoiceNo": "AHC/0015/25-26",
+    "customerName": "Kamal Prasad Pawan Kumar",
+    "paymentDate": "2026-02-06",
+    "amountPaid": 22421,
+    "paymentMethod": "NEFT",
+    "reference": "T77777365",
+    "status": "Completed",
+    "notes": "Part payment"
+  },
+  {
+    "id": 21,
+    "invoiceNo": "AHC/0026/25-26",
+    "customerName": "Amit Pipe Centre",
+    "paymentDate": "2026-02-12",
+    "amountPaid": 326316,
+    "paymentMethod": "IMPS",
+    "reference": "S31761726",
+    "status": "Completed"
+  },
+  {
+    "id": 22,
+    "invoiceNo": "AHC/0023/25-26",
+    "customerName": "Pipe House",
+    "paymentDate": "2026-02-13",
+    "amountPaid": 87148,
+    "paymentMethod": "NEFT",
+    "reference": "T7280404",
+    "status": "Completed"
+  },
+  {
+    "id": 23,
+    "invoiceNo": "AHC/0025/25-26",
+    "customerName": "Sri Sai Nath Traders",
+    "paymentDate": "2026-02-13",
+    "amountPaid": 70000,
+    "paymentMethod": "NEFT",
+    "reference": "T15630648",
+    "status": "Completed",
+    "notes": "Part payment"
+  },
+  {
+    "id": 24,
+    "invoiceNo": "AHC/0024/25-26",
+    "customerName": "New Sharda Sanitary Mahal",
+    "paymentDate": "2026-02-17",
+    "amountPaid": 4736,
+    "paymentMethod": "NEFT",
+    "reference": "V83129601",
+    "status": "Completed"
+  },
+  {
+    "id": 25,
+    "invoiceNo": "AHC/0028/25-26",
+    "customerName": "New Sharda Sanitary Mahal",
+    "paymentDate": "2026-02-17",
+    "amountPaid": 29087,
+    "paymentMethod": "NEFT",
+    "reference": "V83129601",
+    "status": "Completed"
+  },
+  {
+    "id": 26,
+    "invoiceNo": "AHC/0029/25-26",
+    "customerName": "New Sharda Sanitary Mahal",
+    "paymentDate": "2026-02-17",
+    "amountPaid": 8637,
+    "paymentMethod": "NEFT",
+    "reference": "V83129601",
+    "status": "Completed"
+  },
+  {
+    "id": 27,
+    "invoiceNo": "AHC/0030/25-26",
+    "customerName": "New Sharda Sanitary Mahal",
+    "paymentDate": "2026-02-17",
+    "amountPaid": 35183,
+    "paymentMethod": "NEFT",
+    "reference": "V83129601",
+    "status": "Completed"
+  },
+  {
+    "id": 28,
+    "invoiceNo": "AHC/0031/25-26",
+    "customerName": "New Sharda Sanitary Mahal",
+    "paymentDate": "2026-02-17",
+    "amountPaid": 6036,
+    "paymentMethod": "NEFT",
+    "reference": "V83129601",
+    "status": "Completed"
+  },
+  {
+    "id": 29,
+    "invoiceNo": "AHC/0015/25-26",
+    "customerName": "Kamal Prasad Pawan Kumar",
+    "paymentDate": "2026-02-23",
+    "amountPaid": 11950,
+    "paymentMethod": "NEFT",
+    "reference": "S87492538",
+    "status": "Completed",
+    "notes": "Part payment"
+  },
+  {
+    "id": 30,
+    "invoiceNo": "AHC/0021/25-26",
+    "customerName": "Kamal Prasad Pawan Kumar",
+    "paymentDate": "2026-02-23",
+    "amountPaid": 34869,
+    "paymentMethod": "NEFT",
+    "reference": "S87492538",
+    "status": "Completed",
+    "notes": "Part payment"
+  },
+  {
+    "id": 31,
+    "invoiceNo": "AHC/0027/25-26",
+    "customerName": "Singhal Agency",
+    "paymentDate": "2026-02-23",
+    "amountPaid": 332029,
+    "paymentMethod": "RTGS",
+    "reference": "S89760191",
+    "status": "Completed",
+    "notes": "Part payment"
+  },
+  {
+    "id": 32,
+    "invoiceNo": "AHC/0025/25-26",
+    "customerName": "Sri Sai Nath Traders",
+    "paymentDate": "2026-02-24",
+    "amountPaid": 78289,
+    "paymentMethod": "NEFT",
+    "reference": "T49662003",
+    "status": "Completed",
+    "notes": "Part payment"
+  },
+  {
+    "id": 33,
+    "invoiceNo": "AHC/0034/25-26",
+    "customerName": "L.P.B Agency",
+    "paymentDate": "2026-03-02",
+    "amountPaid": 200000,
+    "paymentMethod": "RTGS",
+    "reference": "X87349711",
+    "status": "Completed",
+    "notes": "Part payment"
+  },
+  {
+    "id": 34,
+    "invoiceNo": "AHC/0010/25-26",
+    "customerName": "New Sharda Sanitary Mahal",
+    "paymentDate": "2025-12-24",
+    "amountPaid": 21120,
+    "paymentMethod": "CLG",
+    "reference": "T68682025",
+    "status": "Completed",
+    "notes": "Clears remaining balance for 0010"
+  },
+  {
+    "id": 35,
+    "invoiceNo": "AHC/0011/25-26",
+    "customerName": "New Sharda Sanitary Mahal",
+    "paymentDate": "2025-12-24",
+    "amountPaid": 1500,
+    "paymentMethod": "CLG",
+    "reference": "T68682025",
+    "status": "Completed",
+    "notes": "Clears 0011"
+  },
+  {
+    "id": 36,
+    "invoiceNo": "AHC/0036/25-26",
+    "customerName": "M/s Krishi Auzar Bhandar",
+    "paymentDate": "2026-03-08",
+    "amountPaid": 94116.0,
+    "paymentMethod": "NEFT",
+    "reference": "PUNBH26067819807",
+    "status": "Completed",
+    "notes": "Clears 0036"
+  },
+  {
+    "id": 37,
+    "invoiceNo": "AHC/0039/25-26",
+    "customerName": "Ganpati Traders",
+    "paymentDate": "2026-03-16",
+    "amountPaid": 104265.0,
+    "paymentMethod": "Transfer",
+    "reference": "A1033399",
+    "status": "Completed",
+    "notes": "Clears 0039"
+  },
+  {
+    "id": 38,
+    "invoiceNo": "AHC/0042/25-26",
+    "customerName": "Amit Pipe Centre",
+    "paymentDate": "2026-03-18",
+    "amountPaid": 102853.0,
+    "paymentMethod": "IMPS",
+    "reference": "607715256460",
+    "status": "Completed",
+    "notes": "Clears 0042"
+  }
+]

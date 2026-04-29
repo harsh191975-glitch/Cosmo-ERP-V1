@@ -1,354 +1,1827 @@
 [
- {
-  "Invoice Number": "AHC\/0002\/25-26",
-  "Invoice Date": "2025-12-30",
-  "Customer Name": "Shivshakti Stores Private Limited",
-  "GSTIN": "10AAGCC6589D1ZT",
-  "Place of Supply": "Samastipur",
-  "Taxable Amount": 313408.23,
-  "CGST": 28206.74,
-  "SGST": 28206.74,
-  "Total Amount": 365822
- },
- {
-  "Invoice Number": "AHC\/0003\/25-26",
-  "Invoice Date": "2026-01-07",
-  "Customer Name": "Shivshakti Stores Private Limited",
-  "GSTIN": "10AAGCC6589D1ZT",
-  "Place of Supply": "Samastipur",
-  "Taxable Amount": 31483.35,
-  "CGST": 2833.5,
-  "SGST": 2833.5,
-  "Total Amount": 35650
- },
- {
-  "Invoice Number": "AHC\/0004\/25-26",
-  "Invoice Date": "2026-01-07",
-  "Customer Name": "Kamakhya Traders",
-  "GSTIN": "10BMDPK0501L1ZQ",
-  "Place of Supply": "Ara",
-  "Taxable Amount": 98818.88,
-  "CGST": 8893.7,
-  "SGST": 8893.7,
-  "Total Amount": 111806
- },
- {
-  "Invoice Number": "AHC\/0005\/25-26",
-  "Invoice Date": "2026-01-07",
-  "Customer Name": "Kamakhya Traders",
-  "GSTIN": "10BMDPK0501L1ZQ",
-  "Place of Supply": "Ara",
-  "Taxable Amount": 7620.52,
-  "CGST": 685.85,
-  "SGST": 685.85,
-  "Total Amount": 8992
- },
- {
-  "Invoice Number": "AHC\/0006\/25-26",
-  "Invoice Date": "2026-01-08",
-  "Customer Name": "Sri Sai Nath Traders",
-  "GSTIN": "10BOBPK0370R1Z1",
-  "Place of Supply": "Sasaram",
-  "Taxable Amount": 97767.84,
-  "CGST": 8799.1,
-  "SGST": 8799.1,
-  "Total Amount": 108366
- },
- {
-  "Invoice Number": "AHC\/0007\/25-26",
-  "Invoice Date": "2026-01-08",
-  "Customer Name": "Sri Sai Nath Traders",
-  "GSTIN": "10BOBPK0370R1Z1",
-  "Place of Supply": "Sasaram",
-  "Taxable Amount": 19051.31,
-  "CGST": 1714.62,
-  "SGST": 1714.62,
-  "Total Amount": 22481
- },
- {
-  "Invoice Number": "AHC\/0008\/25-26",
-  "Invoice Date": "2026-01-09",
-  "Customer Name": "M\/s Maa Bhawani Traders",
-  "GSTIN": "10AKKPG2420Q1ZC",
-  "Place of Supply": "Ara",
-  "Taxable Amount": 92076.11,
-  "CGST": 8286.86,
-  "SGST": 8286.86,
-  "Total Amount": 103850
- },
- {
-  "Invoice Number": "AHC\/0009\/25-26",
-  "Invoice Date": "2026-01-09",
-  "Customer Name": "M\/s Maa Bhawani Traders",
-  "GSTIN": "10AKKPG2420Q1ZC",
-  "Place of Supply": "Ara",
-  "Taxable Amount": 48103.61,
-  "CGST": 4329.33,
-  "SGST": 4329.33,
-  "Total Amount": 56762
- },
- {
-  "Invoice Number": "AHC\/0010\/25-26",
-  "Invoice Date": "2026-01-10",
-  "Customer Name": "New Sharda Sanitary Mahal",
-  "GSTIN": "10BKPPK5111C2ZS",
-  "Place of Supply": "Bhagwanpur",
-  "Taxable Amount": 51628.01,
-  "CGST": 4646.51,
-  "SGST": 4646.51,
-  "Total Amount": 60921
- },
- {
-  "Invoice Number": "AHC\/0011\/25-26",
-  "Invoice Date": "2026-01-10",
-  "Customer Name": "New Sharda Sanitary Mahal",
-  "GSTIN": "10BKPPK5111C2ZS",
-  "Place of Supply": "Bhagwanpur",
-  "Taxable Amount": 1271.25,
-  "CGST": 114.41,
-  "SGST": 114.41,
-  "Total Amount": 1500
- },
- {
-  "Invoice Number": "AHC\/0012\/25-26",
-  "Invoice Date": "2026-01-13",
-  "Customer Name": "M\/s Krishi Auzar Bhandar",
-  "GSTIN": "10AAGFK9233K1ZD",
-  "Place of Supply": "Buxar",
-  "Taxable Amount": 57528.77,
-  "CGST": 5177.59,
-  "SGST": 5177.59,
-  "Total Amount": 67884
- },
- {
-  "Invoice Number": "AHC\/0013\/25-26",
-  "Invoice Date": "2026-01-13",
-  "Customer Name": "M\/s Krishi Auzar Bhandar",
-  "GSTIN": "10AAGFK9233K1ZD",
-  "Place of Supply": "Buxar",
-  "Taxable Amount": 69844.26,
-  "CGST": 6285.99,
-  "SGST": 6285.99,
-  "Total Amount": 77416
- },
- {
-  "Invoice Number": "AHC\/0014\/25-26",
-  "Invoice Date": "2026-01-15",
-  "Customer Name": "Kamal Prasad Pawan Kumar",
-  "GSTIN": "10ALUPK0259J1Z1",
-  "Place of Supply": "Sitamarhi",
-  "Taxable Amount": 44558.38,
-  "CGST": 4010.26,
-  "SGST": 4010.26,
-  "Total Amount": 52579
- },
- {
-  "Invoice Number": "AHC\/0015\/25-26",
-  "Invoice Date": "2026-01-15",
-  "Customer Name": "Kamal Prasad Pawan Kumar",
-  "GSTIN": "10ALUPK0259J1Z1",
-  "Place of Supply": "Sitamarhi",
-  "Taxable Amount": 29128.34,
-  "CGST": 2621.55,
-  "SGST": 2621.55,
-  "Total Amount": 32971
- },
- {
-  "Invoice Number": "AHC\/0017\/25-26",
-  "Invoice Date": "2026-01-19",
-  "Customer Name": "M\/s Maa Bhawani Traders",
-  "GSTIN": "10AKKPG2420Q1ZC",
-  "Place of Supply": "Ara",
-  "Taxable Amount": 186320.49,
-  "CGST": 16768.84,
-  "SGST": 16768.84,
-  "Total Amount": 212658
- },
- {
-  "Invoice Number": "AHC\/0018\/25-26",
-  "Invoice Date": "2026-01-23",
-  "Customer Name": "L.P.B Agency",
-  "GSTIN": "10FKZPK2218G1Z5",
-  "Place of Supply": "Purnea",
-  "Taxable Amount": 191010.38,
-  "CGST": 17190.94,
-  "SGST": 17190.94,
-  "Total Amount": 211392
- },
- {
-  "Invoice Number": "AHC\/0019\/25-26",
-  "Invoice Date": "2026-01-23",
-  "Customer Name": "L.P.B Agency",
-  "GSTIN": "10FKZPK2218G1Z5",
-  "Place of Supply": "Purnea",
-  "Taxable Amount": 244436.81,
-  "CGST": 21999.32,
-  "SGST": 21999.32,
-  "Total Amount": 288435
- },
- {
-  "Invoice Number": "AHC\/0021\/25-26",
-  "Invoice Date": "2026-02-02",
-  "Customer Name": "Kamal Prasad Pawan Kumar",
-  "GSTIN": "10ALUPK0259J1Z1",
-  "Place of Supply": "Sitamarhi",
-  "Taxable Amount": 80271.06,
-  "CGST": 7224.4,
-  "SGST": 7224.4,
-  "Total Amount": 93220
- },
- {
-  "Invoice Number": "AHC\/0022\/25-26",
-  "Invoice Date": "2026-02-02",
-  "Customer Name": "New Sharda Sanitary Mahal",
-  "GSTIN": "10BKPPK5111C2ZS",
-  "Place of Supply": "Bhagwanpur",
-  "Taxable Amount": 45119.13,
-  "CGST": 4060.72,
-  "SGST": 4060.72,
-  "Total Amount": 53241
- },
- {
-  "Invoice Number": "AHC\/0023\/25-26",
-  "Invoice Date": "2026-02-03",
-  "Customer Name": "Pipe House",
-  "GSTIN": "10AFEPJ9289B1ZO",
-  "Place of Supply": "Darbhanga",
-  "Taxable Amount": 75210.37,
-  "CGST": 6768.94,
-  "SGST": 6768.94,
-  "Total Amount": 87148
- },
- {
-  "Invoice Number": "AHC\/0024\/25-26",
-  "Invoice Date": "2026-02-03",
-  "Customer Name": "New Sharda Sanitary Mahal",
-  "GSTIN": "10BKPPK5111C2ZS",
-  "Place of Supply": "Bhagwanpur",
-  "Taxable Amount": 4013.55,
-  "CGST": 361.22,
-  "SGST": 361.22,
-  "Total Amount": 4736
- },
- {
-  "Invoice Number": "AHC\/0025\/25-26",
-  "Invoice Date": "2026-02-03",
-  "Customer Name": "Sri Sai Nath Traders",
-  "GSTIN": "10BOBPK0370R1Z1",
-  "Place of Supply": "Sasaram",
-  "Taxable Amount": 131600.87,
-  "CGST": 11844.07,
-  "SGST": 11844.07,
-  "Total Amount": 148289
- },
- {
-  "Invoice Number": "AHC\/0026\/25-26",
-  "Invoice Date": "2026-02-06",
-  "Customer Name": "Amit Pipe Centre",
-  "GSTIN": "10ACPPA9600B1ZD",
-  "Place of Supply": "Begusarai",
-  "Taxable Amount": 281623.46,
-  "CGST": 25346.12,
-  "SGST": 25346.12,
-  "Total Amount": 326316
- },
- {
-  "Invoice Number": "AHC\/0027\/25-26",
-  "Invoice Date": "2026-02-12",
-  "Customer Name": "Singhal Agency",
-  "GSTIN": "10AAGHM4700H1ZS",
-  "Place of Supply": "Katihar",
-  "Taxable Amount": 301808.29,
-  "CGST": 27162.74,
-  "SGST": 27162.74,
-  "Total Amount": 343134
- },
- {
-  "Invoice Number": "AHC\/0028\/25-26",
-  "Invoice Date": "2026-02-12",
-  "Customer Name": "New Sharda Sanitary Mahal",
-  "GSTIN": "10BKPPK5111C2ZS",
-  "Place of Supply": "Bhagwanpur",
-  "Taxable Amount": 24650.09,
-  "CGST": 2218.51,
-  "SGST": 2218.51,
-  "Total Amount": 29087
- },
- {
-  "Invoice Number": "AHC\/0029\/25-26",
-  "Invoice Date": "2026-02-12",
-  "Customer Name": "New Sharda Sanitary Mahal",
-  "GSTIN": "10BKPPK5111C2ZS",
-  "Place of Supply": "Bhagwanpur",
-  "Taxable Amount": 7319.1,
-  "CGST": 658.72,
-  "SGST": 658.72,
-  "Total Amount": 8637
- },
- {
-  "Invoice Number": "AHC\/0030\/25-26",
-  "Invoice Date": "2026-02-17",
-  "Customer Name": "New Sharda Sanitary Mahal",
-  "GSTIN": "10BKPPK5111C2ZS",
-  "Place of Supply": "Bhagwanpur",
-  "Taxable Amount": 29816.43,
-  "CGST": 2683.48,
-  "SGST": 2683.48,
-  "Total Amount": 35183
- },
- {
-  "Invoice Number": "AHC\/0031\/25-26",
-  "Invoice Date": "2026-02-17",
-  "Customer Name": "New Sharda Sanitary Mahal",
-  "GSTIN": "10BKPPK5111C2ZS",
-  "Place of Supply": "Bhagwanpur",
-  "Taxable Amount": 5115.4,
-  "CGST": 460.39,
-  "SGST": 460.39,
-  "Total Amount": 6036
- },
- {
-  "Invoice Number": "AHC\/0032\/25-26",
-  "Invoice Date": "2026-02-24",
-  "Customer Name": "New Sharda Sanitary Mahal",
-  "GSTIN": "10BKPPK5111C2ZS",
-  "Place of Supply": "Bhagwanpur",
-  "Taxable Amount": 28547.44,
-  "CGST": 2569.28,
-  "SGST": 2569.28,
-  "Total Amount": 33686
- },
- {
-  "Invoice Number": "AHC\/0033\/25-26",
-  "Invoice Date": "2026-02-24",
-  "Customer Name": "New Sharda Sanitary Mahal",
-  "GSTIN": "10BKPPK5111C2ZS",
-  "Place of Supply": "Bhagwanpur",
-  "Taxable Amount": 6216.9,
-  "CGST": 559.55,
-  "SGST": 559.55,
-  "Total Amount": 7336
- },
- {
-  "Invoice Number": "AHC\/0034\/25-26",
-  "Invoice Date": "2026-02-27",
-  "Customer Name": "L.P.B Agency",
-  "GSTIN": "10FKZPK2218G1Z5",
-  "Place of Supply": "Purnea",
-  "Taxable Amount": 650195.8,
-  "CGST": 58517.6,
-  "SGST": 58517.6,
-  "Total Amount": 767231
- },
- {
-  "Invoice Number": "AHC\/0035\/25-26",
-  "Invoice Date": "2026-02-27",
-  "Customer Name": "L.P.B Agency",
-  "GSTIN": "10FKZPK2218G1Z5",
-  "Place of Supply": "Purnea",
-  "Taxable Amount": 27528.42,
-  "CGST": 3725.79,
-  "SGST": 3725.79,
-  "Total Amount": 34980
- }
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0002/25-26",
+            "Invoice Date": "2025-12-30"
+        },
+        "Customer Details": {
+            "Customer Name": "Shivshakti Stores Private Limited",
+            "GSTIN": "10AAGCC6589D1ZT",
+            "Place of Supply": "Samastipur"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "8616 2355 7663",
+            "Dispatched Through": "PICKUP",
+            "Destination": "SAMASTIPUR"
+        },
+        "Financial Summary": {
+            "Taxable Amount": 313408.23,
+            "CGST": 28206.74,
+            "SGST": 28206.74,
+            "Freight": -4000.00,
+            "Total Invoice Amount": 365822.00,
+            "Total Weight_KG": 2570
+        },
+        "Line Items": [
+            {
+                "Product Description": "1\"(25MM) GARDEN PIPE",
+                "Quantity": 200,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2423.00,
+                "Discount %": 57
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Garden Pipe",
+                "Quantity": 100,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3514.00,
+                "Discount %": 57
+            },
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 8,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Discount %": 57
+            },
+            {
+                "Product Description": "1/2\" (13mm) Garden Pipe",
+                "Quantity": 10,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1125.00,
+                "Discount %": 57
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0003/25-26",
+            "Invoice Date": "2026-01-07"
+        },
+        "Customer Details": {
+            "Customer Name": "Shivshakti Stores Private Limited",
+            "GSTIN": "10AAGCC6589D1ZT",
+            "Place of Supply": "Samastipur"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 31483.35,
+            "CGST": 2833.50,
+            "SGST": 2833.50,
+            "Freight": -1500.00,
+            "Total Invoice Amount": 35650.00,
+            "Total Weight_KG": 320
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 56,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "3/4(19mm) ECO+ GARDEN PIPE",
+                "Quantity": 8,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1428.00,
+                "Discount %": 65
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0004/25-26",
+            "Invoice Date": "2026-01-07"
+        },
+        "Customer Details": {
+            "Customer Name": "Kamakhya Traders",
+            "GSTIN": "10BMDPK0501L1ZQ",
+            "Place of Supply": "Ara"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "8216 2712 9875",
+            "Dispatched Through": "PICKUP",
+            "Destination": "AARA"
+        },
+        "Financial Summary": {
+            "Taxable Amount": 98818.88,
+            "CGST": 8893.70,
+            "SGST": 8893.70,
+            "Freight": -4800.00,
+            "Total Invoice Amount": 111806.00,
+            "Total Weight_KG": 980
+        },
+        "Line Items": [
+            {
+                "Product Description": "1/2\" (13mm) Garden Pipe",
+                "Quantity": 50,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1125.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 32,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1\" Foam Flexible Garden Pipe",
+                "Quantity": 12,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2466.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1\"(25MM) GARDEN PIPE",
+                "Quantity": 30,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2423.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Garden Pipe",
+                "Quantity": 30,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3514.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0005/25-26",
+            "Invoice Date": "2026-01-07"
+        },
+        "Customer Details": {
+            "Customer Name": "Kamakhya Traders",
+            "GSTIN": "10BMDPK0501L1ZQ",
+            "Place of Supply": "Ara"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 7620.52,
+            "CGST": 685.85,
+            "SGST": 685.85,
+            "Freight": 0,
+            "Total Invoice Amount": 8992.00,
+            "Total Weight_KG": 90
+        },
+        "Line Items": [
+            {
+                "Product Description": "1\" Eco + Garden Pipe",
+                "Quantity": 12,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2141.00,
+                "Discount %": 65
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0006/25-26",
+            "Invoice Date": "2026-01-08"
+        },
+        "Customer Details": {
+            "Customer Name": "Sri Sai Nath Traders",
+            "GSTIN": "10BOBPK0370R1Z1",
+            "Place of Supply": "Sasaram"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "8016 2763 8768",
+            "Dispatched Through": "PICKUP",
+            "Destination": "SASARAM"
+        },
+        "Financial Summary": {
+            "Taxable Amount": 97767.84,
+            "CGST": 8799.10,
+            "SGST": 8799.10,
+            "Freight": -7000.00,
+            "Total Invoice Amount": 108366.00,
+            "Total Weight_KG": 920
+        },
+        "Line Items": [
+            {
+                "Product Description": "1/2\" (13mm) Garden Pipe",
+                "Quantity": 10,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1125.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1\"(25MM) GARDEN PIPE",
+                "Quantity": 50,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2423.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1\" Foam Flexible Garden Pipe",
+                "Quantity": 30,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2466.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Garden Pipe",
+                "Quantity": 30,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3514.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0007/25-26",
+            "Invoice Date": "2026-01-08"
+        },
+        "Customer Details": {
+            "Customer Name": "Sri Sai Nath Traders",
+            "GSTIN": "10BOBPK0370R1Z1",
+            "Place of Supply": "Sasaram"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 19051.31,
+            "CGST": 1714.62,
+            "SGST": 1714.62,
+            "Freight": 0,
+            "Total Invoice Amount": 22481.00,
+            "Total Weight_KG": 210
+        },
+        "Line Items": [
+            {
+                "Product Description": "1\" Eco + Garden Pipe",
+                "Quantity": 30,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2141.00,
+                "Discount %": 65
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0008/25-26",
+            "Invoice Date": "2026-01-09"
+        },
+        "Customer Details": {
+            "Customer Name": "M/s Maa Bhawani Traders",
+            "GSTIN": "10AKKPG2420Q1ZC",
+            "Place of Supply": "Ara"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "8416 2814 1030",
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 92076.11,
+            "CGST": 8286.86,
+            "SGST": 8286.86,
+            "Freight": -4800.00,
+            "Total Invoice Amount": 103850.00,
+            "Total Weight_KG": 882
+        },
+        "Line Items": [
+            {
+                "Product Description": "1/2\" (13mm) Garden Pipe",
+                "Quantity": 10,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1125.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1\"(25MM) GARDEN PIPE",
+                "Quantity": 30,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2423.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1\" Foam Flexible Garden Pipe",
+                "Quantity": 20,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2466.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Garden Pipe",
+                "Quantity": 42,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3514.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 8,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0009/25-26",
+            "Invoice Date": "2026-01-09"
+        },
+        "Customer Details": {
+            "Customer Name": "M/s Maa Bhawani Traders",
+            "GSTIN": "10AKKPG2420Q1ZC",
+            "Place of Supply": "Ara"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 48103.61,
+            "CGST": 4329.33,
+            "SGST": 4329.33,
+            "Freight": 0,
+            "Total Invoice Amount": 56762.00,
+            "Total Weight_KG": 558
+        },
+        "Line Items": [
+            {
+                "Product Description": "1\" Eco + Garden Pipe",
+                "Quantity": 20,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2141.00,
+                "Discount %": 65
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Eco + Garden Pipe",
+                "Quantity": 38,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3140.99,
+                "Discount %": 65
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0010/25-26",
+            "Invoice Date": "2026-01-10"
+        },
+        "Customer Details": {
+            "Customer Name": "New Sharda Sanitary Mahal",
+            "GSTIN": "10BKPPK5111C2ZS",
+            "Place of Supply": "Bhagwanpur"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 51628.01,
+            "CGST": 4646.51,
+            "SGST": 4646.51,
+            "Freight": 0,
+            "Total Invoice Amount": 60921.00,
+            "Total Weight_KG": 507.7
+        },
+        "Line Items": [
+            {
+                "Product Description": "1/2\" GARDEN PIPE",
+                "Quantity": 35.00,
+                "UOM": "KG",
+                "Rate (Incl Tax)": 119.99,
+                "Discount %": 0
+            },
+            {
+                "Product Description": "3/4\" GARDEN PIPE",
+                "Quantity": 334.60,
+                "UOM": "KG",
+                "Rate (Incl Tax)": 119.99,
+                "Discount %": 0
+            },
+            {
+                "Product Description": "1 1/4\" GARDEN PIPE",
+                "Quantity": 115.60,
+                "UOM": "KG",
+                "Rate (Incl Tax)": 119.99,
+                "Discount %": 0
+            },
+            {
+                "Product Description": "1\" GARDEN PIPE",
+                "Quantity": 22.50,
+                "UOM": "KG",
+                "Rate (Incl Tax)": 119.99,
+                "Discount %": 0
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0011/25-26",
+            "Invoice Date": "2026-01-10"
+        },
+        "Customer Details": {
+            "Customer Name": "New Sharda Sanitary Mahal",
+            "GSTIN": "10BKPPK5111C2ZS",
+            "Place of Supply": "Bhagwanpur"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 1271.25,
+            "CGST": 114.41,
+            "SGST": 114.41,
+            "Freight": 0,
+            "Total Invoice Amount": 1500.00,
+            "Total Weight_KG": 15
+        },
+        "Line Items": [
+            {
+                "Product Description": "ECO + GARDEN PIPE 1\"",
+                "Quantity": 15.00,
+                "UOM": "KG",
+                "Rate (Incl Tax)": 100.01,
+                "Discount %": 0
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0012/25-26",
+            "Invoice Date": "2026-01-13"
+        },
+        "Customer Details": {
+            "Customer Name": "M/s Krishi Auzar Bhandar, Buxar",
+            "GSTIN": "10AAGFK9233K1ZD",
+            "Place of Supply": "Buxar"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "8616 2956 8528",
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 57528.77,
+            "CGST": 5177.59,
+            "SGST": 5177.59,
+            "Freight": 0,
+            "Total Invoice Amount": 67884.00,
+            "Total Weight_KG": 570
+        },
+        "Line Items": [
+            {
+                "Product Description": "1/2\" (13mm) Garden Pipe",
+                "Quantity": 20,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1125.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1\"(25MM) GARDEN PIPE",
+                "Quantity": 20,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2423.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1\" Foam Flexible Garden Pipe",
+                "Quantity": 10,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2466.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Garden Pipe",
+                "Quantity": 25,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3514.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0013/25-26",
+            "Invoice Date": "2026-01-13"
+        },
+        "Customer Details": {
+            "Customer Name": "M/s Krishi Auzar Bhandar, Buxar",
+            "GSTIN": "10AAGFK9233K1ZD",
+            "Place of Supply": "Buxar"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "8816 2957 3164",
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 69844.26,
+            "CGST": 6285.99,
+            "SGST": 6285.99,
+            "Freight": -5000.00,
+            "Total Invoice Amount": 77416.00,
+            "Total Weight_KG": 825
+        },
+        "Line Items": [
+            {
+                "Product Description": "1/2\" ECO + GARDEN PIPE",
+                "Quantity": 50,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 998.00,
+                "Discount %": 65
+            },
+            {
+                "Product Description": "1\" Eco + Garden Pipe",
+                "Quantity": 50,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2141.00,
+                "Discount %": 65
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Eco + Garden Pipe",
+                "Quantity": 25,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3140.99,
+                "Discount %": 65
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0014/25-26",
+            "Invoice Date": "2026-01-15"
+        },
+        "Customer Details": {
+            "Customer Name": "Kamal Prasad Pawan Kumar",
+            "GSTIN": "10ALUPK0259J1Z1",
+            "Place of Supply": "Sitamarhi"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 44558.38,
+            "CGST": 4010.26,
+            "SGST": 4010.26,
+            "Freight": 0,
+            "Total Invoice Amount": 52579.00,
+            "Total Weight_KG": 442.5
+        },
+        "Line Items": [
+            {
+                "Product Description": "1/2\" (13mm) Garden Pipe",
+                "Quantity": 10,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1125.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1\"(25MM) GARDEN PIPE",
+                "Quantity": 25,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2423.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Garden Pipe",
+                "Quantity": 20,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3514.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0015/25-26",
+            "Invoice Date": "2026-01-15"
+        },
+        "Customer Details": {
+            "Customer Name": "Kamal Prasad Pawan Kumar",
+            "GSTIN": "10ALUPK0259J1Z1",
+            "Place of Supply": "Sitamarhi"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 29128.34,
+            "CGST": 2621.55,
+            "SGST": 2621.55,
+            "Freight": 0,
+            "Total Invoice Amount": 34371.00,
+            "Total Weight_KG": 344
+        },
+        "Line Items": [
+            {
+                "Product Description": "1\" Eco + Garden Pipe",
+                "Quantity": 40,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2141.00,
+                "Discount %": 65
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Eco + Garden Pipe",
+                "Quantity": 4,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3140.99,
+                "Discount %": 65
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0017/25-26",
+            "Invoice Date": "2026-01-19"
+        },
+        "Customer Details": {
+            "Customer Name": "M/s Maa Bhawani Traders",
+            "GSTIN": "10AKKPG2420Q1ZC",
+            "Place of Supply": "Ara"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 186320.49,
+            "CGST": 16768.84,
+            "SGST": 16768.84,
+            "Freight": -7200.00,
+            "Total Invoice Amount": 212658.00,
+            "Total Weight_KG": 1851.5
+        },
+        "Line Items": [
+            {
+                "Product Description": "1/2\" (13mm) Garden Pipe",
+                "Quantity": 90,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1125.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 32,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1\"(25MM) GARDEN PIPE",
+                "Quantity": 75,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2423.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Garden Pipe",
+                "Quantity": 74,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3514.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0018/25-26",
+            "Invoice Date": "2026-01-23"
+        },
+        "Customer Details": {
+            "Customer Name": "L.P.B Agency",
+            "GSTIN": "10FKZPK2218G1Z5",
+            "Place of Supply": "Purnea"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "8616 3435 0134",
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 191010.38,
+            "CGST": 17190.94,
+            "SGST": 17190.94,
+            "Freight": -14000.00,
+            "Total Invoice Amount": 211392.00,
+            "Total Weight_KG": 2255
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4(19mm) ECO+ GARDEN PIPE",
+                "Quantity": 326,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1428.00,
+                "Discount %": 65
+            },
+            {
+                "Product Description": "1\" Eco + Garden Pipe",
+                "Quantity": 50,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2141.00,
+                "Discount %": 65
+            },
+            {
+                "Product Description": "3/4\" ECO + Garden Pipe (15 Mtr)",
+                "Quantity": 100,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 713.99,
+                "Discount %": 65
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0019/25-26",
+            "Invoice Date": "2026-01-23"
+        },
+        "Customer Details": {
+            "Customer Name": "L.P.B Agency",
+            "GSTIN": "10FKZPK2218G1Z5",
+            "Place of Supply": "Purnea"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "8216 3435 1883",
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 244436.81,
+            "CGST": 21999.32,
+            "SGST": 21999.32,
+            "Freight": 0,
+            "Total Invoice Amount": 288435.00,
+            "Total Weight_KG": 2420
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 256,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1\"(25MM) GARDEN PIPE",
+                "Quantity": 40,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2423.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Garden Pipe",
+                "Quantity": 30,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3514.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "3/4\" Flexible Foam Pipe",
+                "Quantity": 72,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1643.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1\" Foam Flexible Garden Pipe",
+                "Quantity": 20,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2466.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0021/25-26",
+            "Invoice Date": "2026-02-02"
+        },
+        "Customer Details": {
+            "Customer Name": "Kamal Prasad Pawan Kumar",
+            "GSTIN": "10ALUPK0259J1Z1",
+            "Place of Supply": "Sitamarhi"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 80271.06,
+            "CGST": 7224.40,
+            "SGST": 7224.40,
+            "Freight": -1500.00,
+            "Total Invoice Amount": 93220.00,
+            "Total Weight_KG": 800
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 160,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0022/25-26",
+            "Invoice Date": "2026-02-02"
+        },
+        "Customer Details": {
+            "Customer Name": "New Sharda Sanitary Mahal",
+            "GSTIN": "10BKPPK5111C2ZS",
+            "Place of Supply": "Bhagwanpur"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 45119.13,
+            "CGST": 4060.72,
+            "SGST": 4060.72,
+            "Freight": 0,
+            "Total Invoice Amount": 53241.00,
+            "Total Weight_KG": 533
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4\" ECO+ GARDEN PIPE( 20mtr)",
+                "Quantity": 17,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 996.00,
+                "Discount %": 65
+            },
+            {
+                "Product Description": "3/4(19mm) ECO+ GARDEN PIPE",
+                "Quantity": 30,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1428.00,
+                "Discount %": 65
+            },
+            {
+                "Product Description": "1\" Eco + Garden Pipe",
+                "Quantity": 3,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2141.00,
+                "Discount %": 65
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Eco + Garden Pipe",
+                "Quantity": 21,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3140.99,
+                "Discount %": 65
+            },
+            {
+                "Product Description": "1/2\" ECO + GARDEN PIPE",
+                "Quantity": 20,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 998.00,
+                "Discount %": 65
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0023/25-26",
+            "Invoice Date": "2026-02-03"
+        },
+        "Customer Details": {
+            "Customer Name": "Pipe House",
+            "GSTIN": "10AFEPJ9289B1ZO",
+            "Place of Supply": "Darbhanga"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "8816 3933 1044",
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 75210.37,
+            "CGST": 6768.94,
+            "SGST": 6768.94,
+            "Freight": -1600.00,
+            "Total Invoice Amount": 87148.00,
+            "Total Weight_KG": 750
+        },
+        "Line Items": [
+            {
+                "Product Description": "1/2\" (13mm) Garden Pipe",
+                "Quantity": 20,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1125.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 48,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Garden Pipe",
+                "Quantity": 40,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3514.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0024/25-26",
+            "Invoice Date": "2026-02-03"
+        },
+        "Customer Details": {
+            "Customer Name": "New Sharda Sanitary Mahal",
+            "GSTIN": "10BKPPK5111C2ZS",
+            "Place of Supply": "Bhagwanpur"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 4013.55,
+            "CGST": 361.22,
+            "SGST": 361.22,
+            "Freight": 0,
+            "Total Invoice Amount": 4736.00,
+            "Total Weight_KG": 40
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 8,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0025/25-26",
+            "Invoice Date": "2026-02-03"
+        },
+        "Customer Details": {
+            "Customer Name": "Sri Sai Nath Traders",
+            "GSTIN": "10BOBPK0370R1Z1",
+            "Place of Supply": "Sasaram"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "841639420379",
+            "Dispatched Through": null,
+            "Destination": "SASARAM"
+        },
+        "Financial Summary": {
+            "Taxable Amount": 131600.87,
+            "CGST": 11844.07,
+            "SGST": 11844.07,
+            "Freight": -7000.00,
+            "Total Invoice Amount": 148289.00,
+            "Total Weight_KG": 1300
+        },
+        "Line Items": [
+            {
+                "Product Description": "1/2\" (13mm) Garden Pipe",
+                "Quantity": 50,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1125.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1\"(25MM) GARDEN PIPE",
+                "Quantity": 150,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2423.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0026/25-26",
+            "Invoice Date": "2026-02-06"
+        },
+        "Customer Details": {
+            "Customer Name": "Amit Pipe Centre",
+            "GSTIN": "10ACPPA9600B1ZD",
+            "Place of Supply": "Begusarai"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "801640829026",
+            "Dispatched Through": null,
+            "Destination": "Begusarai"
+        },
+        "Financial Summary": {
+            "Taxable Amount": 281623.46,
+            "CGST": 25346.12,
+            "SGST": 25346.12,
+            "Freight": -6000.00,
+            "Total Invoice Amount": 326316.00,
+            "Total Weight_KG": 2787.5
+        },
+        "Line Items": [
+            {
+                "Product Description": "1/2\" (13mm) Garden Pipe",
+                "Quantity": 40,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1125.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1/2\" Foam Garden Pipe",
+                "Quantity": 20,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1148.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 200,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "3/4\" Flexible Foam Pipe",
+                "Quantity": 32,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1643.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1\"(25MM) GARDEN PIPE",
+                "Quantity": 125,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2423.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1\" Foam Flexible Garden Pipe",
+                "Quantity": 20,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2466.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Garden Pipe",
+                "Quantity": 30,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3514.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0027/25-26",
+            "Invoice Date": "2026-02-12"
+        },
+        "Customer Details": {
+            "Customer Name": "Singhal Agency",
+            "GSTIN": "10AAGHM4700H1ZS",
+            "Place of Supply": "Katihar"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "871643524567",
+            "Dispatched Through": null,
+            "Destination": "Katihar"
+        },
+        "Financial Summary": {
+            "Taxable Amount": 301808.29,
+            "CGST": 27162.74,
+            "SGST": 27162.74,
+            "Freight": -13000.00,
+            "Total Invoice Amount": 343134.00,
+            "Total Weight_KG": 3002.5
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 488,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1\"(25MM) GARDEN PIPE",
+                "Quantity": 75,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2423.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0028/25-26",
+            "Invoice Date": "2026-02-12"
+        },
+        "Customer Details": {
+            "Customer Name": "New Sharda Sanitary Mahal",
+            "GSTIN": "10BKPPK5111C2ZS",
+            "Place of Supply": "Bhagwanpur"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 24650.09,
+            "CGST": 2218.51,
+            "SGST": 2218.51,
+            "Freight": 0,
+            "Total Invoice Amount": 29087.00,
+            "Total Weight_KG": 291
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4(19mm) ECO+ GARDEN PIPE",
+                "Quantity": 45,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1428.00,
+                "Discount %": 65
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Eco + Garden Pipe",
+                "Quantity": 6,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3140.99,
+                "Discount %": 65
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0029/25-26",
+            "Invoice Date": "2026-02-12"
+        },
+        "Customer Details": {
+            "Customer Name": "New Sharda Sanitary Mahal",
+            "GSTIN": "10BKPPK5111C2ZS",
+            "Place of Supply": "Bhagwanpur"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 7319.10,
+            "CGST": 658.72,
+            "SGST": 658.72,
+            "Freight": 0,
+            "Total Invoice Amount": 8637.00,
+            "Total Weight_KG": 73
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 8,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Garden Pipe",
+                "Quantity": 3,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3514.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0030/25-26",
+            "Invoice Date": "2026-02-17"
+        },
+        "Customer Details": {
+            "Customer Name": "New Sharda Sanitary Mahal",
+            "GSTIN": "10BKPPK5111C2ZS",
+            "Place of Supply": "Bhagwanpur"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 29816.43,
+            "CGST": 2683.48,
+            "SGST": 2683.48,
+            "Freight": 0,
+            "Total Invoice Amount": 35183.00,
+            "Total Weight_KG": 352
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4(19mm) ECO+ GARDEN PIPE",
+                "Quantity": 44,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1428.00,
+                "Discount %": 65
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Eco + Garden Pipe",
+                "Quantity": 12,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3140.99,
+                "Discount %": 65
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0031/25-26",
+            "Invoice Date": "2026-02-17"
+        },
+        "Customer Details": {
+            "Customer Name": "New Sharda Sanitary Mahal",
+            "GSTIN": "10BKPPK5111C2ZS",
+            "Place of Supply": "Bhagwanpur"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 5115.40,
+            "CGST": 460.39,
+            "SGST": 460.39,
+            "Freight": 0,
+            "Total Invoice Amount": 6036.00,
+            "Total Weight_KG": 51
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 8,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Garden Pipe",
+                "Quantity": 1,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3514.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0032/25-26",
+            "Invoice Date": "2026-02-24"
+        },
+        "Customer Details": {
+            "Customer Name": "New Sharda Sanitary Mahal",
+            "GSTIN": "10BKPPK5111C2ZS",
+            "Place of Supply": "Bhagwanpur"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 28547.55,
+            "CGST": 2569.28,
+            "SGST": 2569.28,
+            "Freight": 0,
+            "Total Invoice Amount": 33686.00,
+            "Total Weight_KG": 337
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4(19mm) ECO+ GARDEN PIPE",
+                "Quantity": 63,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1428.00,
+                "Discount %": 65
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Eco + Garden Pipe",
+                "Quantity": 2,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3140.99,
+                "Discount %": 65
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0033/25-26",
+            "Invoice Date": "2026-02-24"
+        },
+        "Customer Details": {
+            "Customer Name": "New Sharda Sanitary Mahal",
+            "GSTIN": "10BKPPK5111C2ZS",
+            "Place of Supply": "Bhagwanpur"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 6217.25,
+            "CGST": 559.55,
+            "SGST": 559.55,
+            "Freight": 0,
+            "Total Invoice Amount": 7336.00,
+            "Total Weight_KG": 62
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 8,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Garden Pipe",
+                "Quantity": 2,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3514.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0034/25-26",
+            "Invoice Date": "2026-02-27"
+        },
+        "Customer Details": {
+            "Customer Name": "L.P.B Agency",
+            "GSTIN": "10FKZPK2218G1Z5",
+            "Place of Supply": "Purnea"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "801651131837",
+            "Dispatched Through": null,
+            "Destination": "Purnea"
+        },
+        "Financial Summary": {
+            "Taxable Amount": 650195.55,
+            "CGST": 58517.60,
+            "SGST": 58517.60,
+            "Freight": 0,
+            "Total Invoice Amount": 767231.00,
+            "Total Weight_KG": 6480
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 1296,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0035/25-26",
+            "Invoice Date": "2026-02-27"
+        },
+        "Customer Details": {
+            "Customer Name": "L.P.B Agency",
+            "GSTIN": "10FKZPK2218G1Z5",
+            "Place of Supply": "Purnea"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "8216 5113 9374",
+            "Dispatched Through": null,
+            "Destination": "Purnea"
+        },
+        "Financial Summary": {
+            "Taxable Amount": 41508.83,
+            "CGST": 3735.79,
+            "SGST": 3735.79,
+            "Freight": -14000.00,
+            "Total Invoice Amount": 34980.00,
+            "Total Weight_KG": 490
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4(19mm) ECO+ GARDEN PIPE",
+                "Quantity": 98,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1428.00,
+                "Discount %": 65
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0036/25-26",
+            "Invoice Date": "2026-03-07"
+        },
+        "Customer Details": {
+            "Customer Name": "M/s Krishi Auzar Bhandar, Buxar",
+            "GSTIN": "10AAGFK9233K1ZD",
+            "Place of Supply": "Buxar"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "881654247218",
+            "Dispatched Through": null,
+            "Destination": "Buxar"
+        },
+        "Financial Summary": {
+            "Taxable Amount": 83572.97,
+            "CGST": 7521.57,
+            "SGST": 7521.57,
+            "Freight": -4500.00,
+            "Total Invoice Amount": 94116.00,
+            "Total Weight_KG": 825
+        },
+        "Line Items": [
+            {
+                "Product Description": "1\"(25MM) GARDEN PIPE",
+                "Quantity": 110,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2423.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0037/25-26",
+            "Invoice Date": "2026-03-07"
+        },
+        "Customer Details": {
+            "Customer Name": "New Sharda Sanitary Mahal",
+            "GSTIN": "10BKPPK5111C2ZS",
+            "Place of Supply": "Bhagwanpur"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 17786.81,
+            "CGST": 1600.81,
+            "SGST": 1600.81,
+            "Freight": 0,
+            "Total Invoice Amount": 20988.00,
+            "Total Weight_KG": 210
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4(19mm) ECO+ GARDEN PIPE",
+                "Quantity": 9,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1428.00,
+                "Discount %": 65
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Eco + Garden Pipe",
+                "Quantity": 15,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3141.00,
+                "Discount %": 65
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0038/25-26",
+            "Invoice Date": "2026-03-07"
+        },
+        "Customer Details": {
+            "Customer Name": "New Sharda Sanitary Mahal",
+            "GSTIN": "10BKPPK5111C2ZS",
+            "Place of Supply": "Bhagwanpur"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Financial Summary": {
+            "Taxable Amount": 4013.55,
+            "CGST": 361.22,
+            "SGST": 361.22,
+            "Freight": 0,
+            "Total Invoice Amount": 4736.00,
+            "Total Weight_KG": 40
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 8,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0039/25-26",
+            "Invoice Date": "2026-03-10",
+            "Booked By": "MO"
+        },
+        "Customer Details": {
+            "Customer Name": "Ganpati Traders",
+            "GSTIN": "10DLSPS9333A1Z2",
+            "Place of Supply": "Raxaul Bazar"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "8516 5579 9368",
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Line Items": [
+            {
+                "Product Description": "1/2\" (13mm) Garden Pipe",
+                "Quantity": 10,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1125.00,
+                "Rate (Excl Tax)": 953.39,
+                "Discount %": 63,
+                "Line Amount": 3527.54
+            },
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 160,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Rate (Excl Tax)": 1355.93,
+                "Discount %": 63,
+                "Line Amount": 80271.06
+            },
+            {
+                "Product Description": "1\"(25MM) GARDEN PIPE",
+                "Quantity": 5,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2423.00,
+                "Rate (Excl Tax)": 2053.39,
+                "Discount %": 63,
+                "Line Amount": 3798.77
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Garden Pipe",
+                "Quantity": 3,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3514.00,
+                "Rate (Excl Tax)": 2977.97,
+                "Discount %": 63,
+                "Line Amount": 3305.55
+            }
+        ],
+        "Financial Summary": {
+            "Total Quantity": 178,
+            "Taxable Amount": 90902.92,
+            "CGST": 8181.27,
+            "SGST": 8181.27,
+            "Round Off": -0.46,
+            "Freight": -3000.00,
+            "Total Invoice Amount": 104265.00,
+            "Total Weight_KG": 905.5
+        }
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0040/25-26",
+            "Invoice Date": "2026-03-10",
+            "Booked By": "AM"
+        },
+        "Customer Details": {
+            "Customer Name": "New Sharda Sanitary Mahal",
+            "GSTIN": "10BKPPK5111C2ZS",
+            "Place of Supply": "Bhagwanpur"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": null,
+            "Dispatched Through": null,
+            "Destination": null
+        },
+        "Line Items": [
+            {
+                "Product Description": "1/4\" GARDEN PIPE",
+                "Quantity": 37.50,
+                "UOM": "KG",
+                "Rate (Incl Tax)": 100.00,
+                "Rate (Excl Tax)": 84.75,
+                "Discount %": 0,
+                "Line Amount": 3178.13
+            }
+        ],
+        "Financial Summary": {
+            "Total Quantity": 37.5,
+            "Taxable Amount": 3178.13,
+            "CGST": 286.03,
+            "SGST": 286.03,
+            "Round Off": -0.19,
+            "Freight": 0,
+            "Total Invoice Amount": 3750.00,
+            "Total Weight_KG": 37.5
+        }
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0041/25-26",
+            "Invoice Date": "2026-03-12"
+        },
+        "Customer Details": {
+            "Customer Name": "Sri Shyam Distributor",
+            "GSTIN": "10AEIPL0767R1Z6",
+            "Place of Supply": "Purbi Champaran"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "801656850148",
+            "Dispatched Through": null,
+            "Destination": "MADHUBAN"
+        },
+        "Financial Summary": {
+            "Taxable Amount": 91174.15,
+            "CGST": 8205.68,
+            "SGST": 8205.68,
+            "Freight": -1300.00,
+            "Round Off": 0.49,
+            "Total Invoice Amount": 106286.00,
+            "Total Weight_KG": 908
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 160,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1\"(25MM) GARDEN PIPE",
+                "Quantity": 10,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2423.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Garden Pipe",
+                "Quantity": 3,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3514.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0042/25-26",
+            "Invoice Date": "2026-03-14"
+        },
+        "Customer Details": {
+            "Customer Name": "Amit Pipe Centre",
+            "GSTIN": "10ACPPA9600B1ZD",
+            "Place of Supply": "Begusarai"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "821657767070",
+            "Dispatched Through": "1-Road",
+            "Destination": "Begusarai"
+        },
+        "Financial Summary": {
+            "Taxable Amount": 89197.62,
+            "CGST": 8027.79,
+            "SGST": 8027.79,
+            "Freight": -2400.00,
+            "Total Invoice Amount": 102853.00,
+            "Total Weight_KG": 882
+        },
+        "Line Items": [
+            {
+                "Product Description": "1\"(25MM) GARDEN PIPE",
+                "Quantity": 100,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2423.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1 1/4\" (32mm) Garden Pipe",
+                "Quantity": 12,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 3514.00,
+                "Discount %": 63
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0043/25-26",
+            "Invoice Date": "2026-03-14"
+        },
+        "Customer Details": {
+            "Customer Name": "Om Shivani Traders",
+            "GSTIN": "10CUMPC9469D1ZO",
+            "Place of Supply": "Bettiah"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "851657880644",
+            "Dispatched Through": "1-Road",
+            "Destination": "Bettiah"
+        },
+        "Financial Summary": {
+            "Taxable Amount": 49553.51,
+            "CGST": 4459.82,
+            "SGST": 4459.82,
+            "Freight": -3300.00,
+            "Total Invoice Amount": 55173.00,
+            "Total Weight_KG": 585
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4(19mm) ECO+ GARDEN PIPE",
+                "Quantity": 102,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1428.00,
+                "Discount %": 65
+            },
+            {
+                "Product Description": "1\" Eco + Garden Pipe",
+                "Quantity": 10,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2141.00,
+                "Discount %": 65
+            }
+        ]
+    },
+    {
+        "Invoice Details": {
+            "Invoice Number": "AHC/0044/25-26",
+            "Invoice Date": "2026-03-14"
+        },
+        "Customer Details": {
+            "Customer Name": "Om Shivani Traders",
+            "GSTIN": "10CUMPC9469D1ZO",
+            "Place of Supply": "Bettiah"
+        },
+        "Shipping & Logistics": {
+            "e-Way Bill No": "881657883147",
+            "Dispatched Through": "1-Road",
+            "Destination": "Bettiah"
+        },
+        "Financial Summary": {
+            "Taxable Amount": 19638.20,
+            "CGST": 1767.44,
+            "SGST": 1767.44,
+            "Freight": 0.00,
+            "Total Invoice Amount": 23173.00,
+            "Total Weight_KG": null
+        },
+        "Line Items": [
+            {
+                "Product Description": "3/4\" (19mm) Garden Pipe 1x8",
+                "Quantity": 24,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 1600.00,
+                "Discount %": 63
+            },
+            {
+                "Product Description": "1\"(25MM) GARDEN PIPE",
+                "Quantity": 10,
+                "UOM": "BDL",
+                "Rate (Incl Tax)": 2423.00,
+                "Discount %": 63
+            }
+        ]
+    }
 ]

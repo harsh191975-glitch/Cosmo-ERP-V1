@@ -1,0 +1,92 @@
+[
+  {
+    "id": 1,
+    "invoice_number": "AHC/0002/25-26",
+    "date": "30-Dec-25",
+    "freight_amount": "-4000.00"
+  },
+  {
+    "id": 2,
+    "invoice_number": "AHC/0003/25-26",
+    "date": "7-Jan-26",
+    "freight_amount": "-1500.00"
+  },
+  {
+    "id": 3,
+    "invoice_number": "AHC/0004/25-26",
+    "date": "7-Jan-26",
+    "freight_amount": "-4800.00"
+  },
+  {
+    "id": 4,
+    "invoice_number": "AHC/0006/25-26",
+    "date": "8-Jan-26",
+    "freight_amount": "-7000.00"
+  },
+  {
+    "id": 5,
+    "invoice_number": "AHC/0008/25-26",
+    "date": "9-Jan-26",
+    "freight_amount": "-4800.00"
+  },
+  {
+    "id": 6,
+    "invoice_number": "AHC/0013/25-26",
+    "date": "13-Jan-26",
+    "freight_amount": "-5000.00"
+  },
+  {
+    "id": 7,
+    "invoice_number": "AHC/0017/25-26",
+    "date": "19-Jan-26",
+    "freight_amount": "-7200.00"
+  },
+  {
+    "id": 8,
+    "invoice_number": "AHC/0018/25-26",
+    "date": "23-Jan-26",
+    "freight_amount": "-14000.00"
+  },
+  {
+    "id": 9,
+    "invoice_number": "AHC/0021/25-26",
+    "date": "2-Feb-26",
+    "freight_amount": "-1500.00"
+  },
+  {
+    "id": 10,
+    "invoice_number": "AHC/0023/25-26",
+    "date": "3-Feb-26",
+    "freight_amount": "-1600.00"
+  },
+  {
+    "id": 11,
+    "invoice_number": "AHC/0025/25-26",
+    "date": "3-Feb-26",
+    "freight_amount": "-7000.00"
+  },
+  {
+    "id": 12,
+    "invoice_number": "AHC/0026/25-26",
+    "date": "6-Feb-26",
+    "freight_amount": "-6000.00"
+  },
+  {
+    "id": 13,
+    "invoice_number": "AHC/0027/25-26",
+    "date": "12-Feb-26",
+    "freight_amount": "-13000.00"
+  },
+  {
+    "id": 14,
+    "invoice_number": "AHC/0035/25-26",
+    "date": "27-Feb-26",
+    "freight_amount": "-14000.00"
+  },
+  {
+    "id": 15,
+    "invoice_number": "AHC/0036/25-26",
+    "date": "7-Mar-26",
+    "freight_amount": "-4500.00"
+  }
+]

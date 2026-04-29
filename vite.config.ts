@@ -11,6 +11,17 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+    },
+    proxy: {
+      "/supabase-api": {
+        target: "https://ohnjcnwlhggeobftfbnr.supabase.co",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/supabase-api/, ""),
+        secure: true,
+      },
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

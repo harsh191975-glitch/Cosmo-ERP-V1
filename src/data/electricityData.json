@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "month": "January 2026",
+    "electricity_bill_amount": 45000.00
+  },
+  {
+    "id": 2,
+    "month": "February 2026",
+    "electricity_bill_amount": 45000.00
+  }
+]

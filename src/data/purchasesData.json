@@ -1,0 +1,489 @@
+[
+  {
+    "id": 1,
+    "category": "raw-materials",
+    "invoice_no": "6",
+    "date": "2025-11-28",
+    "supplier": "Shakambari Shakti (India) Private Limited",
+    "tax_rate": 18,
+    "taxable_amount": 196250.0,
+    "tax": 35325.0,
+    "total": 231575.0,
+    "items": [
+      {
+        "product_name": "PVC Suspension Resin",
+        "quantity_mt": 1.0,
+        "rate_per_mt": 75000.0,
+        "subtotal": 75000.0
+      },
+      {
+        "product_name": "Chlorinated Poaraffin Plasticizer",
+        "quantity_mt": 0.5,
+        "rate_per_mt": 64000.0,
+        "subtotal": 32000.0
+      },
+      {
+        "product_name": "Chlorinated Poaraffin Plasticizer",
+        "quantity_mt": 0.75,
+        "rate_per_mt": 58000.0,
+        "subtotal": 43500.0
+      },
+      {
+        "product_name": "SHITA STAB",
+        "quantity_mt": 0.05,
+        "rate_per_mt": 390000.0,
+        "subtotal": 19500.0
+      },
+      {
+        "product_name": "Payflex P80 DI Octyl Phthalate Plasticizers",
+        "quantity_mt": 0.21,
+        "rate_per_mt": 125000.0,
+        "subtotal": 26250.0
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "category": "raw-materials",
+    "invoice_no": "7",
+    "date": "2025-12-22",
+    "supplier": "Shakambari Shakti (India) Private Limited",
+    "tax_rate": 18,
+    "taxable_amount": 205500.0,
+    "tax": 36990.0,
+    "total": 242490.0,
+    "items": [
+      {
+        "product_name": "PVC Suspension Resin",
+        "quantity_mt": 3.0,
+        "rate_per_mt": 68500.0,
+        "subtotal": 205500.0
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "category": "raw-materials",
+    "invoice_no": "8",
+    "date": "2025-12-23",
+    "supplier": "Shakambari Shakti (India) Private Limited",
+    "tax_rate": 18,
+    "taxable_amount": 165750.0,
+    "tax": 29835.0,
+    "total": 195585.0,
+    "items": [
+      {
+        "product_name": "Chlorinated Poaraffin Plasticizer",
+        "quantity_mt": 1.5,
+        "rate_per_mt": 63000.0,
+        "subtotal": 94500.0
+      },
+      {
+        "product_name": "Chlorinated Poaraffin Plasticizer",
+        "quantity_mt": 1.25,
+        "rate_per_mt": 57000.0,
+        "subtotal": 71250.0
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "category": "raw-materials",
+    "invoice_no": "9",
+    "date": "2025-12-30",
+    "supplier": "Shakambari Shakti (India) Private Limited",
+    "tax_rate": 18,
+    "taxable_amount": 211500.0,
+    "tax": 38070.0,
+    "total": 249570.0,
+    "items": [
+      {
+        "product_name": "PVC Suspension Resin",
+        "quantity_mt": 3.0,
+        "rate_per_mt": 70500.0,
+        "subtotal": 211500.0
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "category": "raw-materials",
+    "invoice_no": "12",
+    "date": "2025-12-30",
+    "supplier": "Shakambari Shakti (India) Private Limited",
+    "tax_rate": 18,
+    "taxable_amount": 176040.0,
+    "tax": 31687.2,
+    "total": 207727.2,
+    "items": [
+      {
+        "product_name": "Chlorinated Poaraffin Plasticizer",
+        "quantity_mt": 1.25,
+        "rate_per_mt": 63000.0,
+        "subtotal": 78750.0
+      },
+      {
+        "product_name": "Chlorinated Poaraffin Plasticizer",
+        "quantity_mt": 1.25,
+        "rate_per_mt": 57000.0,
+        "subtotal": 71250.0
+      },
+      {
+        "product_name": "Payflex P80 DI Octyl Phthalate Plasticizers",
+        "quantity_mt": 0.21,
+        "rate_per_mt": 124000.0,
+        "subtotal": 26040.0
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "category": "raw-materials",
+    "invoice_no": "5",
+    "date": "2026-01-07",
+    "supplier": "Shakambari Shakti (India) Private Limited",
+    "tax_rate": 18,
+    "taxable_amount": 162750.0,
+    "tax": 29295.0,
+    "total": 192045.0,
+    "items": [
+      {
+        "product_name": "Chlorinated Poaraffin Plasticizer",
+        "quantity_mt": 1.0,
+        "rate_per_mt": 63000.0,
+        "subtotal": 63000.0
+      },
+      {
+        "product_name": "Chlorinated Poaraffin Plasticizer",
+        "quantity_mt": 1.75,
+        "rate_per_mt": 57000.0,
+        "subtotal": 99750.0
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "category": "raw-materials",
+    "invoice_no": "4",
+    "date": "2026-01-09",
+    "supplier": "Shakambari Shakti (India) Private Limited",
+    "tax_rate": 18,
+    "taxable_amount": 189750.0,
+    "tax": 34155.0,
+    "total": 223905.0,
+    "items": [
+      {
+        "product_name": "PVC Suspension Resin",
+        "quantity_mt": 2.75,
+        "rate_per_mt": 69000.0,
+        "subtotal": 189750.0
+      }
+    ]
+  },
+  {
+    "id": 8,
+    "category": "raw-materials",
+    "invoice_no": "SS10INV252601362",
+    "date": "2026-01-15",
+    "supplier": "SHAKAMBARI SHAKTI (INDIA) PRIVATE LIMITED",
+    "tax_rate": 18,
+    "taxable_amount": 159875.0,
+    "tax": 28777.5,
+    "total": 188652.5,
+    "items": [
+      {
+        "product_name": "Chlorinated Paraffin Plasticizer (SUNTEK Grade 1300)",
+        "quantity_mt": 0.75,
+        "rate_per_mt": 62500.0,
+        "subtotal": 46875.0
+      },
+      {
+        "product_name": "Chlorinated Paraffin Plasticizer (SUNTEK Grade 1400)",
+        "quantity_mt": 2.0,
+        "rate_per_mt": 56500.0,
+        "subtotal": 113000.0
+      }
+    ]
+  },
+  {
+    "id": 9,
+    "category": "raw-materials",
+    "invoice_no": "SS10INV252601398",
+    "date": "2026-01-22",
+    "supplier": "SHAKAMBARI SHAKTI (INDIA) PRIVATE LIMITED",
+    "tax_rate": 18,
+    "taxable_amount": 195250.0,
+    "tax": 35145.0,
+    "total": 230395.0,
+    "items": [
+      {
+        "product_name": "PVC Suspension Resin (QINGDAO HAIWAN HS-1000R)",
+        "quantity_mt": 2.75,
+        "rate_per_mt": 71000.0,
+        "subtotal": 195250.0
+      }
+    ]
+  },
+  {
+    "id": 10,
+    "category": "raw-materials",
+    "invoice_no": "SS10INV252601423",
+    "date": "2026-01-27",
+    "supplier": "SHAKAMBARI SHAKTI (INDIA) PRIVATE LIMITED",
+    "tax_rate": 18,
+    "taxable_amount": 183250.0,
+    "tax": 32985.0,
+    "total": 216235.0,
+    "items": [
+      {
+        "product_name": "Chlorinated Paraffin Plasticizer (SUNTEK Grade 1450)",
+        "quantity_mt": 1.25,
+        "rate_per_mt": 53500.0,
+        "subtotal": 66875.0
+      },
+      {
+        "product_name": "Chlorinated Paraffin Plasticizer (SUNTEK Grade 1400)",
+        "quantity_mt": 1.25,
+        "rate_per_mt": 56500.0,
+        "subtotal": 70625.0
+      },
+      {
+        "product_name": "Payflex P80 DI Octyl Phthalate Plasticizers",
+        "quantity_mt": 0.21,
+        "rate_per_mt": 125000.0,
+        "subtotal": 26250.0
+      },
+      {
+        "product_name": "SHITA STAB (SHITAL Grade 509)",
+        "quantity_mt": 0.05,
+        "rate_per_mt": 390000.0,
+        "subtotal": 19500.0
+      }
+    ]
+  },
+  {
+    "id": 11,
+    "category": "raw-materials",
+    "invoice_no": "SS10INV252601501",
+    "date": "2026-02-11",
+    "supplier": "SHAKAMBARI SHAKTI (INDIA) PRIVATE LIMITED",
+    "tax_rate": 18,
+    "taxable_amount": 78500.0,
+    "tax": 14130.0,
+    "total": 92630.0,
+    "items": [
+      {
+        "product_name": "PVC Suspension Resin (QINGDAO HAIWAN HS-1000R)",
+        "quantity_mt": 1.0,
+        "rate_per_mt": 78500.0,
+        "subtotal": 78500.0
+      }
+    ]
+  },
+  {
+    "id": 12,
+    "category": "raw-materials",
+    "invoice_no": "SS10INV252601528",
+    "date": "2026-02-14",
+    "supplier": "SHAKAMBARI SHAKTI (INDIA) PRIVATE LIMITED",
+    "tax_rate": 18,
+    "taxable_amount": 156000.0,
+    "tax": 28080.0,
+    "total": 184080.0,
+    "items": [
+      {
+        "product_name": "PVC Suspension Resin (QINGDAO HAIWAN HS1000R)",
+        "quantity_mt": 2.0,
+        "rate_per_mt": 78000.0,
+        "subtotal": 156000.0
+      }
+    ]
+  },
+  {
+    "id": 13,
+    "category": "raw-materials",
+    "invoice_no": "SS10INV252601570",
+    "date": "2026-02-20",
+    "supplier": "Shakambari Shakti (India) Private Limited",
+    "tax_rate": 18,
+    "taxable_amount": 165750.0,
+    "tax": 29835.0,
+    "total": 195585.0,
+    "items": [
+      {
+        "product_name": "Chlorinated Paraffin Plasticizer",
+        "quantity_mt": 2.25,
+        "rate_per_mt": 54500.0,
+        "subtotal": 122625.0
+      },
+      {
+        "product_name": "Chlorinated Paraffin Plasticizer",
+        "quantity_mt": 0.75,
+        "rate_per_mt": 57500.0,
+        "subtotal": 43125.0
+      }
+    ]
+  },
+  {
+    "id": 14,
+    "category": "raw-materials",
+    "invoice_no": "SS10INV252601635",
+    "date": "2026-03-02",
+    "supplier": "Shakambari Shakti (India) Private Limited",
+    "tax_rate": 18,
+    "taxable_amount": 195750.0,
+    "tax": 35235.0,
+    "total": 230985.0,
+    "items": [
+      {
+        "product_name": "Chlorinated Paraffin Plasticizer",
+        "quantity_mt": 0.5,
+        "rate_per_mt": 65000.0,
+        "subtotal": 32500.0
+      },
+      {
+        "product_name": "Chlorinated Paraffin Plasticizer",
+        "quantity_mt": 2.0,
+        "rate_per_mt": 59000.0,
+        "subtotal": 118000.0
+      },
+      {
+        "product_name": "Payflex P80 DI Octyl Phthalate Plasticizers",
+        "quantity_mt": 0.21,
+        "rate_per_mt": 125000.0,
+        "subtotal": 26250.0
+      },
+      {
+        "product_name": "SHITA STAB",
+        "quantity_mt": 0.05,
+        "rate_per_mt": 380000.0,
+        "subtotal": 19000.0
+      }
+    ]
+  },
+  {
+    "id": 15,
+    "category": "raw-materials",
+    "invoice_no": "SS10INV252601596",
+    "date": "2026-02-24",
+    "supplier": "Shakambari Shakti (India) Private Limited",
+    "tax_rate": 18,
+    "taxable_amount": 228000.0,
+    "tax": 41040.0,
+    "total": 269040.0,
+    "items": [
+      {
+        "product_name": "PVC Suspension Resin",
+        "quantity_mt": 3.0,
+        "rate_per_mt": 76000.0,
+        "subtotal": 228000.0
+      }
+    ]
+  },
+  {
+    "id": 16,
+    "category": "packaging",
+    "invoice_no": "KP-25-26-031",
+    "date": "2025-11-28",
+    "supplier": "Kaushal Printers",
+    "tax_rate": 18,
+    "items": [
+      {
+        "product_name": "Paper Print (Four Color Label)",
+        "quantity_units": 2000,
+        "rate_per_unit": 12,
+        "subtotal": 24000
+      },
+      {
+        "product_name": "Paper Print (Four Color Label)",
+        "quantity_units": 2000,
+        "rate_per_unit": 14,
+        "subtotal": 28000
+      },
+      {
+        "product_name": "Paper Print (Four Color Label)",
+        "quantity_units": 2000,
+        "rate_per_unit": 20,
+        "subtotal": 40000
+      }
+    ],
+    "taxable_amount": 92000,
+    "tax": 16560.0,
+    "total": 108560.0
+  },
+  {
+    "id": 17,
+    "category": "packaging",
+    "invoice_no": "KP-25-26-039",
+    "date": "2026-02-19",
+    "supplier": "Kaushal Printers",
+    "tax_rate": 18,
+    "items": [
+      {
+        "product_name": "Label Printing (Four Color Blue)",
+        "quantity_units": 3000,
+        "rate_per_unit": 14,
+        "subtotal": 42000
+      }
+    ],
+    "taxable_amount": 42000,
+    "tax": 7560.0,
+    "total": 49560.0
+  },
+  {
+    "id": 18,
+    "category": "packaging",
+    "invoice_no": "GPI/1214/25-26",
+    "date": "2025-12-04",
+    "supplier": "GURUKRUPA PACKAGING INDUSTRIES",
+    "tax_rate": 18,
+    "items": [
+      {
+        "product_name": "Packaging Materials (Specific items not listed in PO)",
+        "quantity_units": 1,
+        "rate_per_unit": 13487.29,
+        "subtotal": 13487.29
+      }
+    ],
+    "taxable_amount": 13487.29,
+    "tax": 2427.71,
+    "total": 15915.0
+  },
+  {
+    "id": 19,
+    "category": "packaging",
+    "invoice_no": "GPI/1346/25-26",
+    "date": "2025-12-25",
+    "supplier": "GURUKRUPA PACKAGING INDUSTRIES",
+    "tax_rate": 18,
+    "items": [
+      {
+        "product_name": "White - Single Side Single Color Print (Size 32x55)",
+        "quantity_units": 1000,
+        "rate_per_unit": 25.7,
+        "subtotal": 25700.0
+      },
+      {
+        "product_name": "White - Single Side Single Color Print (Size 36x55)",
+        "quantity_units": 1000,
+        "rate_per_unit": 28.1,
+        "subtotal": 28100.0
+      },
+      {
+        "product_name": "White - Single Side Single Color Print (Size 28x55)",
+        "quantity_units": 500,
+        "rate_per_unit": 26.4,
+        "subtotal": 13200.0
+      },
+      {
+        "product_name": "Stereo Charges & Others (Calculated to match invoice total)",
+        "quantity_units": 1,
+        "rate_per_unit": 13438.98,
+        "subtotal": 13438.98
+      }
+    ],
+    "taxable_amount": 80438.98,
+    "tax": 14479.02,
+    "total": 94918.0
+  }
+]

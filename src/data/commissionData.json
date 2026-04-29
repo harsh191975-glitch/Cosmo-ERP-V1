@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1,
+    "month": "January",
+    "recipient": "Cosmo",
+    "category": "Sales Commission",
+    "total_amount": 63862.80
+  },
+  {
+    "id": 2,
+    "month": "February",
+    "recipient": "Cosmo",
+    "category": "Sales Commission",
+    "total_amount": 69396.00
+  }
+]

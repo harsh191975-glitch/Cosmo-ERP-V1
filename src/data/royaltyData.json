@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "month": "January",
+    "recipient": "Mr. Piyush Chheda",
+    "category": "Royalty",
+    "gross_amount": 5568.10,
+    "tds_amount": 0,
+    "net_amount": 5568.10
+  },
+  {
+    "id": 2,
+    "month": "January",
+    "recipient": "Ms. Janvi Piyush Chheda",
+    "category": "Royalty",
+    "gross_amount": 50112.90,
+    "tds_amount": 5011.29,
+    "net_amount": 45101.61
+  },
+  {
+    "id": 3,
+    "month": "February",
+    "recipient": "Mr. Piyush Chheda",
+    "category": "Royalty",
+    "gross_amount": 7673.00,
+    "tds_amount": 0,
+    "net_amount": 7673.00
+  },
+  {
+    "id": 4,
+    "month": "February",
+    "recipient": "Ms. Janvi Piyush Chheda",
+    "category": "Royalty",
+    "gross_amount": 69057.00,
+    "tds_amount": 6905.70,
+    "net_amount": 62151.30
+  }
+]

@@ -1,0 +1,40 @@
+[
+  {
+    "invoice_no": "KP-25-26-031",
+    "date": "2025-11-28",
+    "supplier": "Kaushal Printers",
+    "category": "Packaging",
+    "items": [
+      {
+        "product_name": "Paper Print (Four Color Label)",
+        "quantity_units": 2000,
+        "rate_per_unit": 12
+      },
+      {
+        "product_name": "Paper Print (Four Color Label)",
+        "quantity_units": 2000,
+        "rate_per_unit": 14
+      },
+      {
+        "product_name": "Paper Print (Four Color Label)",
+        "quantity_units": 2000,
+        "rate_per_unit": 20
+      }
+    ],
+    "tax_rate": 18
+  },
+  {
+    "invoice_no": "KP-25-26-039",
+    "date": "2026-02-19",
+    "supplier": "Kaushal Printers",
+    "category": "Packaging",
+    "items": [
+      {
+        "product_name": "Label Printing (Four Color Blue)",
+        "quantity_units": 3000,
+        "rate_per_unit": 14
+      }
+    ],
+    "tax_rate": 18
+  }
+]

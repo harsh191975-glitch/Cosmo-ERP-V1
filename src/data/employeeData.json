@@ -1,0 +1,74 @@
+[
+  {
+    "id": "0001",
+    "month": "January 2026",
+    "job_description": "Operator",
+    "monthly_salary_inr": 30000
+  },
+  {
+    "id": "0002",
+    "month": "January 2026",
+    "job_description": "Bundle Man",
+    "monthly_salary_inr": 15000
+  },
+  {
+    "id": "0003",
+    "month": "January 2026",
+    "job_description": "Mixture Man",
+    "monthly_salary_inr": 13500
+  },
+  {
+    "id": "0004",
+    "month": "January 2026",
+    "job_description": "Packing Man",
+    "monthly_salary_inr": 13500
+  },
+  {
+    "id": "0005",
+    "month": "January 2026",
+    "job_description": "Mixture Helper",
+    "monthly_salary_inr": 13500
+  },
+  {
+    "id": "0006",
+    "month": "January 2026",
+    "job_description": "Guard",
+    "monthly_salary_inr": 12000
+  },
+  {
+    "id": "0001",
+    "month": "February 2026",
+    "job_description": "Operator",
+    "monthly_salary_inr": 30000
+  },
+  {
+    "id": "0002",
+    "month": "February 2026",
+    "job_description": "Bundle Man",
+    "monthly_salary_inr": 15000
+  },
+  {
+    "id": "0003",
+    "month": "February 2026",
+    "job_description": "Mixture Man",
+    "monthly_salary_inr": 13500
+  },
+  {
+    "id": "0004",
+    "month": "February 2026",
+    "job_description": "Packing Man",
+    "monthly_salary_inr": 13500
+  },
+  {
+    "id": "0005",
+    "month": "February 2026",
+    "job_description": "Mixture Helper",
+    "monthly_salary_inr": 13500
+  },
+  {
+    "id": "0006",
+    "month": "February 2026",
+    "job_description": "Guard",
+    "monthly_salary_inr": 12000
+  }
+]
