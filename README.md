@@ -129,7 +129,7 @@ npm run test
 
 ## 📸 Screenshots
 
-*(Add dashboard, expenses tab, and reports UI here — highly recommended)*
+You will find in the Screenshots folder :}
 
 ---
 
