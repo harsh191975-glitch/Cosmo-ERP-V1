@@ -1,8 +1,10 @@
 # 🚀 COSMO ERP
 
-> A modern financial & inventory ERP powered by a real double-entry accounting engine.
+A modern AI-powered ERP built on a real double-entry accounting engine.
 
-COSMO is a full-stack ERP dashboard designed to manage business finances with accuracy, clarity, and real-time insights. It combines accounting, inventory, and operational tracking into a single, fast, and reliable interface.
+COSMO is a full-stack ERP dashboard designed to manage business finances with accuracy, clarity, and real-time insights.
+
+It goes beyond traditional systems by leveraging AI to eliminate repetitive work, optimize workflows, and intelligently structure financial data — turning manual operations into automated, reliable processes.
 
 ---
 
@@ -24,15 +26,24 @@ COSMO helps businesses manage:
 
 ## 🧠 What Makes It Different
 
-Unlike typical CRUD-based dashboards, COSMO is built around a **true accounting engine**:
+Unlike typical CRUD-based dashboards, COSMO is a truly AI Powered ERP built around a true accounting engine:
 
-* ⚖️ **Double-entry ledger system** (every transaction is balanced)
-* 💰 **Integer-based calculations** (no floating-point precision errors)
-* 📉 **Accrual-based financial logic**
-* 🧪 **Data Quality Score (DQS)** to detect anomalies
-* 🧱 **Strict architecture** (no direct DB calls in UI)
+📄 AI-driven data extraction — automatically converts raw inputs (like invoices, bills, and notes) into structured financial records
+(a capability still missing or limited in many ERPs like Zoho and Salesforce)
 
-This makes COSMO closer to a real financial system than a basic dashboard.
+⚖️ Double-entry ledger system (every transaction is balanced)
+
+
+💰 Integer-based calculations (no floating-point precision errors)
+
+📉 Accrual-based financial logic
+
+🧪 Data Quality Score (DQS) to detect anomalies
+
+🧱 Strict architecture (no direct DB calls in UI)
+
+🤖 Powered by Anthropic’s Claude for intelligent data extraction
+
 
 ---
 
