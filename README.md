@@ -165,7 +165,7 @@ You will find in the Screenshots folder :}
 ## 🤝 Contributing
 
 Currently not open for external contributions.
-If you're interested in the project, feel free to reach out.
+If you're interested in the project, feel free to reach out @harsh.191975@gmail.com
 
 ---
 
