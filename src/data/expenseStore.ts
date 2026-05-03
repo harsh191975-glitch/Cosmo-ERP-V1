@@ -71,7 +71,7 @@ export async function getExpenses(): Promise<ExpenseRow[]> {
     return [];
   }
 
-  return (data ?? []) as ExpenseRow[];
+  return (data ?? []) as unknown as ExpenseRow[];
 }
 
 // ── Write functions ──────────────────────────────────────────────
@@ -107,6 +107,43 @@ export async function createExpense(expense: NewExpense): Promise<ExpenseRow> {
 
   if (error || !data) throw new Error(`[expenseStore] createExpense: ${error?.message}`);
   return data as ExpenseRow;
+}
+
+/**
+ * Full-payload expense insert — accepts every optional column that the
+ * RecordExpense form may populate (salary_month, gross_amount, tds_amount,
+ * reference_invoice_no, etc.) in addition to the required fields.
+ *
+ * UI components must use this instead of calling supabase directly.
+ * Throws on failure so the caller can display an error toast.
+ */
+export interface FullExpensePayload {
+  expense_date:           string;
+  category:               string;
+  amount:                 number;
+  payee_name?:            string | null;
+  payment_method?:        string | null;
+  salary_month?:          string | null;
+  billing_month?:         string | null;
+  utility_type?:          string | null;
+  reference_invoice_no?:  string | null;
+  invoice_freight_amount?: number | null;
+  reference_text?:        string | null;
+  gross_amount?:          number | null;
+  tds_amount?:            number | null;
+  notes?:                 string | null;
+  source?:                string | null;
+}
+
+export async function insertExpense(payload: FullExpensePayload): Promise<void> {
+  if (!payload.expense_date) throw new Error("Expense date is required.");
+  if (!payload.category)     throw new Error("Category is required.");
+
+  const { error } = await supabase
+    .from("expenses")
+    .insert(payload);
+
+  if (error) throw new Error(`[expenseStore] insertExpense: ${error.message}`);
 }
 
 /**

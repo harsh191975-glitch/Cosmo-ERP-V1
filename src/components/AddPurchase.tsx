@@ -14,7 +14,7 @@ import {
   createPurchaseWithRpc,
   type Supplier,
 } from "@/data/purchaseStore";
-import { supabase } from "@/lib/supabaseClient"; // still used for inventory_items master load
+import { getItems } from "@/data/inventoryStore";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -302,14 +302,18 @@ export const AddPurchase = ({ onClose, onSaved }: AddPurchaseProps) => {
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: inv }, supplierRows] = await Promise.all([
-        supabase
-          .from("inventory_items")
-          .select("id,item_name,sku_code,category,unit_of_measure,buy_rate")
-          .order("item_name"),
-        getSuppliers(),                  // goes through the store, not raw supabase
+      const [invItems, supplierRows] = await Promise.all([
+        getItems(),       // inventory master — via store, never raw supabase
+        getSuppliers(),   // supplier list — via store
       ]);
-      setInventoryItems(inv ?? []);
+      setInventoryItems(invItems.map(i => ({
+        id:              i.id,
+        item_name:       i.item_name,
+        sku_code:        i.sku_code,
+        category:        i.category,
+        unit_of_measure: i.unit_of_measure,
+        buy_rate:        i.buy_rate ?? 0,
+      })));
       setSuppliers(supplierRows);
       setLoadingMaster(false);
     };

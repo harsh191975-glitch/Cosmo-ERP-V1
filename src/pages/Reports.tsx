@@ -3,7 +3,8 @@ import { useLocation } from "react-router-dom";
 import { getAllInvoices, getAllPayments } from "@/data/invoiceStore";
 import { getCreditTotalsForInvoices } from "@/data/creditNoteStore";
 import { getPurchases } from "@/data/purchaseStore";
-import { supabase } from "@/lib/supabaseClient";
+import { getActiveSession } from "@/data/authStore";
+import { getItems, getTransactions } from "@/data/inventoryStore";
 import { runEnterpriseEngine } from "@/engine/financialEngine";
 import { getExpenses, ExpenseRow } from "@/data/expenseStore";
 import { Card } from "@/components/ui/card";
@@ -1518,8 +1519,8 @@ const PnLReport = () => {
   useEffect(() => {
     setEngineLoading(true);
     setEngine(null);
-    // [AUTH-GUARD] Confirm session before engine run — prevents RLS empty-data on LAN/refresh.
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // [AUTH-GUARD] Confirm session before engine run — via authStore, not raw supabase.
+    getActiveSession().then(session => {
       if (!session) {
         console.warn("[PnLReport] No active session — skipping engine run.");
         setEngineLoading(false);
@@ -1562,18 +1563,18 @@ const PnLReport = () => {
   useEffect(() => {
     const load = async () => {
       setInvLoad(true);
-      const { data: { session } } = await supabase.auth.getSession();
+      const session = await getActiveSession();
       if (!session) {
         console.warn("[PnLReport] No active session — skipping inventory fetch.");
         setInvLoad(false);
         return;
       }
-      const [{ data: items }, { data: txns }] = await Promise.all([
-        supabase.from("inventory_items").select("*"),
-        supabase.from("inventory_transactions").select("*"),
+      const [items, txns] = await Promise.all([
+        getItems(),
+        getTransactions(),
       ]);
-      setInvItems(items ?? []);
-      setInvTxns(txns ?? []);
+      setInvItems(items);
+      setInvTxns(txns);
       setInvLoad(false);
     };
     load();
@@ -1997,8 +1998,8 @@ const CashFlowReport = () => {
   useEffect(() => {
     setEngineLoading(true);
     setEngine(null);
-    // [AUTH-GUARD] Confirm session before engine run — prevents RLS empty-data on LAN/refresh.
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // [AUTH-GUARD] Confirm session before engine run — via authStore, not raw supabase.
+    getActiveSession().then(session => {
       if (!session) {
         console.warn("[CashFlowReport] No active session — skipping engine run.");
         setEngineLoading(false);

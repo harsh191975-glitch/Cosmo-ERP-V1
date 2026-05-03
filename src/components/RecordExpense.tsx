@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { getInvoiceNosForFreight } from "@/data/invoiceStore";
+import { insertExpense, type FullExpensePayload } from "@/data/expenseStore";
 import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem,
@@ -74,23 +75,16 @@ export const RecordExpense = ({ onClose, onSaved }: RecordExpenseProps) => {
   const [invoiceNos,        setInvoiceNos]        = useState<string[]>([]);
   const [invoiceFreightMap, setInvoiceFreightMap] = useState<Record<string, number>>({});
 
-  // Fetch invoice numbers (and their logistics freight values) from Supabase
+  // Fetch invoice numbers (and their logistics freight values) from the store
   useEffect(() => {
-    const fetchInvoices = async () => {
-      const { data } = await supabase
-        .from("invoices")
-        .select("invoice_no, freight")
-        .order("invoice_no", { ascending: false });
-      if (data) {
-        setInvoiceNos(data.map((r: any) => r.invoice_no).filter(Boolean));
-        const map: Record<string, number> = {};
-        for (const r of data) {
-          if (r.invoice_no && r.freight != null) map[r.invoice_no] = Number(r.freight);
-        }
-        setInvoiceFreightMap(map);
+    getInvoiceNosForFreight().then(rows => {
+      setInvoiceNos(rows.map(r => r.invoice_no).filter(Boolean));
+      const map: Record<string, number> = {};
+      for (const r of rows) {
+        if (r.invoice_no) map[r.invoice_no] = r.freight;
       }
-    };
-    fetchInvoices();
+      setInvoiceFreightMap(map);
+    });
   }, []);
 
   useEffect(() => {
@@ -120,7 +114,7 @@ export const RecordExpense = ({ onClose, onSaved }: RecordExpenseProps) => {
     setSaving(true);
     const rp = payee === "Other" ? customPayee.trim() : payee;
     const invoiceRef = refInvoice === "__none__" ? null : refInvoice || null;
-    const record: Record<string, any> = {
+    const record: FullExpensePayload = {
       expense_date: date, category,
       amount: category === "Royalty" ? royaltyNet : Number(amount),
       payee_name: rp, payment_method: paymentMethod,
@@ -140,14 +134,16 @@ export const RecordExpense = ({ onClose, onSaved }: RecordExpenseProps) => {
       }
     }
 
-    const { error } = await supabase.from("expenses").insert(record);
-    setSaving(false);
-    if (error) {
-      setToast({ message: `Error: ${error.message}`, type: "error" });
-      setTimeout(() => setToast(null), 4000);
-    } else {
+    try {
+      await insertExpense(record);
+      setSaving(false);
       setToast({ message: `${category} expense recorded!`, type: "success" });
       setTimeout(() => { setToast(null); onSaved(); onClose(); }, 1200);
+    } catch (err: unknown) {
+      setSaving(false);
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setToast({ message: `Error: ${msg}`, type: "error" });
+      setTimeout(() => setToast(null), 4000);
     }
   };
 

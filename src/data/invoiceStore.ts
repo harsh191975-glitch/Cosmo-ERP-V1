@@ -381,6 +381,37 @@ export async function buildInvoicesWithPayments(): Promise<EnrichedInvoice[]> {
   });
 }
 
+// ── Freight lookup (used by RecordExpense.tsx) ────────────────────────────────
+
+export interface InvoiceFreightRow {
+  invoice_no: string;
+  freight:    number;
+}
+
+/**
+ * Fetch a lightweight projection of invoice_no + freight values.
+ * Used by the RecordExpense form to:
+ *  - Populate the "Linked Invoice" dropdown for Freight / Commission / Royalty entries.
+ *  - Show the invoice's logistics freight value for mismatch detection.
+ *
+ * Components must import and call this instead of querying supabase directly.
+ */
+export async function getInvoiceNosForFreight(): Promise<InvoiceFreightRow[]> {
+  const { data, error } = await supabase
+    .from("invoices")
+    .select("invoice_no, freight")
+    .order("invoice_no", { ascending: false });
+
+  if (error) {
+    console.error("[invoiceStore] getInvoiceNosForFreight:", error.message);
+    return [];
+  }
+  return (data ?? []).map((r: { invoice_no: string; freight: number | null }) => ({
+    invoice_no: r.invoice_no,
+    freight:    Number(r.freight ?? 0),
+  }));
+}
+
 // ── Backup exports ────────────────────────────────────────────────────────────
 
 export async function exportFinanceDataJson(): Promise<void> {
