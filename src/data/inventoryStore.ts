@@ -2,30 +2,63 @@
 // Store layer for inventory — the single access boundary between the app and
 // the inventory_items / inventory_transactions Supabase tables.
 //
-// Why this exists:
-//   Stock mutation logic (newStock = current ± qty) was living inside
-//   Inventory.tsx tab components, making it untestable and unshare-able.
-//   Moving it here means Reports (P&L COGS), Dashboard KPIs, and any future
-//   invoice→stock-out linkage can all call the same validated functions.
+// FIX CHANGELOG
+// ─────────────
+// [FIX-CAT] CATEGORY CONSTRAINT (400 errors)
+//   VALID_ITEM_CATEGORIES was using snake_case values ("raw_material") that
+//   don't match the DB check constraint which expects title-case strings.
+//   Confirmed constraint via pg_get_constraintdef:
+//     ARRAY['Raw Material', 'Packaging', 'Finished Good']
+//   "Other" is NOT in the constraint — it has been removed.
+//   The type, constant, and isValidItemCategory guard are now aligned to the
+//   exact DB values. Use the ITEM_CATEGORY_LABELS map for display strings if
+//   different UI labels are needed without touching the stored value.
 //
-// What Reports.tsx PnL uses today (and what replaces it):
-//   BEFORE: direct supabase.from("inventory_items").select("*") in a useEffect
-//   AFTER:  getStockSummary() — one call, typed return, no Supabase in the page.
+// [FIX-RLS] RLS COMPLIANCE on ALL writes
+//   requireUserId() / attachUserId() helpers (same pattern as expenseStore)
+//   are applied to every .insert() and .upsert() call:
+//     • postTransaction  — inventory_transactions insert
+//     • addItem          — inventory_items insert
+//     • updateItem       — inventory_items update (no user_id change needed,
+//                          but RLS USING already gates by user_id column so
+//                          the update is safe; no mutation of user_id here)
+//   Both functions previously had inline getCurrentUserId() checks that only
+//   guarded some paths. They now consistently throw via requireUserId().
 //
-// Inventory.tsx tab components can replace their direct supabase calls with:
-//   postTransaction()  — for recording stock IN / OUT with the reversal-safe update
-//   getItems()         — for the products list
-//   getTransactions()  — for the transaction log
+// [FIX-NOOP] reverseTransaction / deleteItem
+//   These are DELETE operations. RLS USING (user_id = auth.uid()) already
+//   prevents cross-user deletes at the DB level. No user_id payload needed.
 
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, getCurrentUserId } from "@/lib/supabaseClient";
 import type {
   InventoryItem,
   InventoryTransaction,
   StockSummary,
   StockMutationResult,
-  ItemCategory,
   TransactionType,
 } from "@/types/inventory";
+
+// ── [FIX-CAT] Corrected item categories ───────────────────────────────────
+// ⚠️  These THREE values are the ONLY ones accepted by the DB check constraint
+//   (confirmed via pg_get_constraintdef):
+//   CHECK ((category = ANY (ARRAY['Raw Material'::text, 'Packaging'::text, 'Finished Good'::text])))
+// "Other" is NOT in the constraint and has been removed.
+// Do NOT add values here without first updating the constraint in Supabase.
+export const ITEM_CATEGORIES = [
+  "Raw Material",
+  "Finished Good",
+  "Packaging",
+] as const;
+
+export type ItemCategory = (typeof ITEM_CATEGORIES)[number];
+
+// Optional: map DB values → human labels if the UI wants different display text.
+// Currently they're identical; add entries here if the UI ever diverges.
+export const ITEM_CATEGORY_LABELS: Record<ItemCategory, string> = {
+  "Raw Material":  "Raw Material",
+  "Finished Good": "Finished Good",
+  "Packaging":     "Packaging",
+};
 
 // ── Direction helper (same logic as Inventory.tsx txDir) ──────────────────
 const TX_IN_TYPES: TransactionType[] = ["purchase_in", "return_in"];
@@ -36,12 +69,6 @@ const VALID_TRANSACTION_TYPES: TransactionType[] = [
   "adjustment",
   "return_in",
 ];
-const VALID_ITEM_CATEGORIES: ItemCategory[] = [
-  "raw_material",
-  "finished_good",
-  "packaging",
-  "other",
-];
 
 export const txDirection = (type: TransactionType): "in" | "out" =>
   TX_IN_TYPES.includes(type) ? "in" : "out";
@@ -49,8 +76,34 @@ export const txDirection = (type: TransactionType): "in" | "out" =>
 const isValidTransactionType = (type: string): type is TransactionType =>
   VALID_TRANSACTION_TYPES.includes(type as TransactionType);
 
+// [FIX-CAT] Now validates against corrected title-case values
 const isValidItemCategory = (category: string): category is ItemCategory =>
-  VALID_ITEM_CATEGORIES.includes(category as ItemCategory);
+  (ITEM_CATEGORIES as readonly string[]).includes(category);
+
+// ── [FIX-RLS] Auth helpers ────────────────────────────────────────────────
+
+/**
+ * Resolves the current user's ID or throws immediately.
+ * Use at the top of every write function so RLS failures surface as a
+ * clear auth error rather than a silent 403 from Supabase.
+ */
+async function requireUserId(): Promise<string> {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    throw new Error(
+      "[inventoryStore] No authenticated session. " +
+      "The user must be logged in before writing inventory data."
+    );
+  }
+  return userId;
+}
+
+/**
+ * Stamps `user_id` onto any insert/upsert payload without mutating the original.
+ */
+function attachUserId<T extends object>(payload: T, userId: string): T & { user_id: string } {
+  return { ...payload, user_id: userId };
+}
 
 // ════════════════════════════════════════════════════════════════
 // READ — Products
@@ -110,11 +163,7 @@ export const getTransactions = async (limit = 300): Promise<InventoryTransaction
  * ⚠️  FAILURE BEHAVIOUR — callers must check fetchError:
  *   This function never throws. On Supabase failure it returns fetchError: string
  *   with closingStockValue: 0.
- *   That zero is NOT a safe fallback. The direction of the error is unknowable:
- *     - If opening stock is high, COGS is overstated → profit understated
- *     - If purchases are incomplete, COGS is already wrong regardless
- *     - Timing mismatches can push it either direction
- *   There is no "conservative" failure mode here. The number is simply invalid.
+ *   That zero is NOT a safe fallback. The direction of the error is unknowable.
  *   P&L MUST refuse to render COGS, gross profit, and net profit when fetchError
  *   is set. Do not fallback, estimate, or warn-and-proceed.
  *
@@ -122,21 +171,12 @@ export const getTransactions = async (limit = 300): Promise<InventoryTransaction
  *   also computes openingStockValue — the WAC value of stock on hand just before
  *   this date, derived by replaying inventory_transactions in reverse from the
  *   current stock. When omitted (all-time view), openingStockValue is null.
- *
- * Used by:
- *   - Reports.tsx PnLReport  → closingStockValue + openingStockValue for COGS
- *   - Dashboard (future)     → lowStockCount + closingStockValue for KPIs
  */
 export const getStockSummary = async (periodStart?: string): Promise<StockSummary> => {
   const { data, error } = await supabase
     .from("inventory_items")
     .select("id, current_stock, buy_rate, minimum_reorder_level");
 
-  // Return typed error — do NOT throw or default to zero silently.
-  // closingStockValue: 0 here is NOT a safe fallback. It is an invalid number.
-  // Whether it over- or understates COGS depends on opening stock, purchase
-  // timing, and data completeness — the direction is unknowable.
-  // Callers MUST check fetchError and refuse to render any P&L output when set.
   if (error) {
     return {
       closingStockValue: 0,
@@ -154,10 +194,6 @@ export const getStockSummary = async (periodStart?: string): Promise<StockSummar
     "current_stock" | "buy_rate" | "minimum_reorder_level"
   > & { id: string })[];
 
-  // WAC: each item's contribution = qty on hand × purchase cost per unit.
-  // Items with no buy_rate (null/0) contribute ₹0 — we don't know their
-  // cost basis so they are treated as zero-cost, which understates the asset.
-  // When buy_rate coverage improves, this number will increase automatically.
   const closingStockValue = items.reduce(
     (sum, item) => sum + item.current_stock * (item.buy_rate ?? 0),
     0
@@ -166,32 +202,6 @@ export const getStockSummary = async (periodStart?: string): Promise<StockSummar
   const lowStockCount = items.filter(
     (item) => item.current_stock <= item.minimum_reorder_level
   ).length;
-
-  // ── Opening stock computation ──────────────────────────────────────────────
-  // When a period start is given, reconstruct the stock level each item held
-  // just before that date by replaying transactions that occurred ON OR AFTER
-  // periodStart in reverse.
-  //
-  // Logic: current_stock is the live ending balance. Any transaction that
-  // happened on or after periodStart has already moved the balance from what
-  // it was at period open. Reversing those transactions gives us opening stock.
-  //
-  //   openingQty = current_stock
-  //                − Σ qty of IN  transactions on/after periodStart   (undo the adds)
-  //                + Σ qty of OUT transactions on/after periodStart   (undo the subtracts)
-  //
-  // Opening value = Σ (openingQty × buy_rate) — WAC, same basis as closing.
-  //
-  // LIMITATIONS:
-  //   - buy_rate is a single current rate per item (not lot-tracked). If the
-  //     rate changed during the period, opening value is on the current rate,
-  //     which slightly misrepresents the historical cost. This is the same
-  //     limitation that affects closingStockValue and is inherent to the WAC
-  //     periodic approach without lot tracking.
-  //   - Transactions with null transaction_date are excluded from the replay;
-  //     they are treated as pre-period. This is the safe direction — they
-  //     reduce the adjustment, leaving openingQty closer to current_stock —
-  //     but it is a known approximation when dates are missing.
 
   let openingStockValue: number | null = null;
   let replayError: string | null = null;
@@ -203,16 +213,14 @@ export const getStockSummary = async (periodStart?: string): Promise<StockSummar
       .gte("transaction_date", periodStart);
 
     if (txErr) {
-      openingStockValue = null;
-      replayError = `[inventoryStore.getStockSummary] Failed to replay opening stock from ${periodStart}: ${txErr.message}`;
+      replayError = `[inventoryStore.getStockSummary] opening stock replay failed: ${txErr.message}`;
     } else {
-      // Build a per-item adjustment map
-      const adjustments = new Map<string, number>(); // item_id → net qty to subtract from current_stock
-      for (const tx of (txData ?? [])) {
-        const dir = TX_IN_TYPES.includes(tx.transaction_type as TransactionType) ? "in" : "out";
+      const adjustments = new Map<string, number>();
+
+      for (const tx of txData ?? []) {
+        if (!tx.transaction_date) continue;
+        const dir = txDirection(tx.transaction_type as TransactionType);
         const current = adjustments.get(tx.item_id) ?? 0;
-        // Reversing: IN transactions subtracted (they added to stock during period),
-        // OUT transactions added back (they removed from stock during period).
         adjustments.set(
           tx.item_id,
           dir === "in"
@@ -221,7 +229,6 @@ export const getStockSummary = async (periodStart?: string): Promise<StockSummar
         );
       }
 
-      // Compute opening value: apply adjustment to each item
       openingStockValue = items.reduce((sum, item) => {
         const adj = adjustments.get(item.id) ?? 0;
         const openingQty = Math.max(0, item.current_stock + adj);
@@ -249,7 +256,7 @@ export interface PostTransactionPayload {
   item_id: string;
   transaction_type: TransactionType;
   quantity_changed: number;
-  transaction_date: string;  // ISO "YYYY-MM-DD"
+  transaction_date: string;   // ISO "YYYY-MM-DD"
   reference_number?: string;
   notes?: string;
   /** Current stock of the item — caller must pass this to avoid a second read. */
@@ -259,11 +266,9 @@ export interface PostTransactionPayload {
 /**
  * Records a stock transaction and updates current_stock on the item.
  *
- * This is the domain logic that previously lived in Inventory.tsx tab
- * components as `newStock = current_stock ± qty`.  Moving it here means:
- *   - The same calculation can be called from invoice save (sales_out) in future
- *   - The reversal logic (delete transaction) also uses this function's inverse
- *   - It can be unit-tested without mounting a React component
+ * [FIX-RLS] Uses requireUserId() / attachUserId() on the INSERT.
+ *           The stock UPDATE (.update) does not need user_id in the payload;
+ *           RLS USING filters by the row's existing user_id column.
  *
  * Stock can never go below 0 on an outbound transaction.
  */
@@ -271,33 +276,47 @@ export const postTransaction = async (
   payload: PostTransactionPayload
 ): Promise<StockMutationResult> => {
   const { item_id, transaction_type, quantity_changed, currentStock } = payload;
-  if (!isValidTransactionType(transaction_type)) {
-    return { success: false, newStock: currentStock, error: `Invalid transaction type: ${transaction_type}` };
-  }
-  const dir = txDirection(transaction_type);
 
+  if (!isValidTransactionType(transaction_type)) {
+    return {
+      success: false,
+      newStock: currentStock,
+      error: `Invalid transaction type: ${transaction_type}`,
+    };
+  }
+
+  const dir = txDirection(transaction_type);
   const newStock =
     dir === "in"
       ? currentStock + quantity_changed
       : Math.max(0, currentStock - quantity_changed);
 
-  // 1. Insert the transaction record
+  // [FIX-RLS] Throws clearly if there is no session.
+  const userId = await requireUserId();
+
+  // 1. Insert the transaction record with user_id attached.
   const { error: txErr } = await supabase
     .from("inventory_transactions")
-    .insert({
-      item_id,
-      transaction_type,
-      quantity_changed,
-      transaction_date:  payload.transaction_date,
-      reference_number:  payload.reference_number ?? null,
-      notes:             payload.notes ?? null,
-    });
+    .insert(
+      attachUserId(
+        {
+          item_id,
+          transaction_type,
+          quantity_changed,
+          transaction_date:  payload.transaction_date,
+          reference_number:  payload.reference_number ?? null,
+          notes:             payload.notes ?? null,
+        },
+        userId
+      )
+    );
 
   if (txErr) {
     return { success: false, newStock: currentStock, error: txErr.message };
   }
 
-  // 2. Update current_stock on the item
+  // 2. Update current_stock on the item.
+  //    RLS USING on inventory_items gates this to the owner's rows.
   const { error: stockErr } = await supabase
     .from("inventory_items")
     .update({ current_stock: newStock })
@@ -325,24 +344,30 @@ export interface ReverseTransactionPayload {
 
 /**
  * Deletes a transaction record and reverses its stock effect.
- * Replaces the inline delete + reversal logic in TransactionLogTab.handleDelete.
+ *
+ * [FIX-NOOP] DELETE is gated by RLS USING (user_id = auth.uid()) at the DB
+ *            level. No user_id payload is required or modified here.
  */
 export const reverseTransaction = async (
   payload: ReverseTransactionPayload
 ): Promise<StockMutationResult> => {
   const { transactionId, item_id, transaction_type, quantity_changed, currentStock } = payload;
-  if (!isValidTransactionType(transaction_type)) {
-    return { success: false, newStock: currentStock, error: `Invalid transaction type: ${transaction_type}` };
-  }
-  const dir = txDirection(transaction_type);
 
-  // Reversal: IN becomes subtract, OUT becomes add
+  if (!isValidTransactionType(transaction_type)) {
+    return {
+      success: false,
+      newStock: currentStock,
+      error: `Invalid transaction type: ${transaction_type}`,
+    };
+  }
+
+  const dir = txDirection(transaction_type);
   const newStock =
     dir === "in"
       ? Math.max(0, currentStock - quantity_changed)
       : currentStock + quantity_changed;
 
-  // 1. Delete the transaction record
+  // 1. Delete the transaction record — RLS USING handles auth enforcement.
   const { error: delErr } = await supabase
     .from("inventory_transactions")
     .delete()
@@ -352,7 +377,7 @@ export const reverseTransaction = async (
     return { success: false, newStock: currentStock, error: delErr.message };
   }
 
-  // 2. Reverse the stock on the item
+  // 2. Reverse the stock on the item.
   const { error: stockErr } = await supabase
     .from("inventory_items")
     .update({ current_stock: newStock })
@@ -373,34 +398,70 @@ export type ProductPayload = Omit<InventoryItem,
   "id" | "created_at" | "updated_at" | "current_stock"
 >;
 
+/**
+ * Insert a new inventory item.
+ *
+ * [FIX-CAT] isValidItemCategory now validates against title-case DB values.
+ * [FIX-RLS] Uses requireUserId() / attachUserId() on the INSERT.
+ */
 export const addItem = async (payload: ProductPayload): Promise<{ error?: string }> => {
   if (!isValidItemCategory(payload.category)) {
-    return { error: `Invalid item category: ${payload.category}` };
+    return {
+      error:
+        `Invalid item category "${payload.category}". ` +
+        `Allowed values (must match DB exactly): ${ITEM_CATEGORIES.join(", ")}`,
+    };
   }
+
+  // [FIX-RLS] Throws if no session — caller's try/catch will show the error.
+  const userId = await requireUserId();
+
   const { error } = await supabase
     .from("inventory_items")
-    .insert({ ...payload, current_stock: 0 });
+    .insert(attachUserId({ ...payload, current_stock: 0 }, userId));
+
   return error ? { error: error.message } : {};
 };
 
+/**
+ * Update an existing inventory item.
+ *
+ * [FIX-CAT] Category validation now uses corrected title-case values.
+ * [FIX-RLS] UPDATE on inventory_items is gated by RLS USING (user_id = auth.uid()).
+ *           We do NOT change user_id here — the row already carries it, and
+ *           the RLS policy prevents updating another user's row.
+ */
 export const updateItem = async (
   id: string,
   payload: Partial<ProductPayload>
 ): Promise<{ error?: string }> => {
   if (payload.category && !isValidItemCategory(payload.category)) {
-    return { error: `Invalid item category: ${payload.category}` };
+    return {
+      error:
+        `Invalid item category "${payload.category}". ` +
+        `Allowed values (must match DB exactly): ${ITEM_CATEGORIES.join(", ")}`,
+    };
   }
+
   const { error } = await supabase
     .from("inventory_items")
     .update(payload)
     .eq("id", id);
+
   return error ? { error: error.message } : {};
 };
 
+/**
+ * Delete an inventory item by ID.
+ *
+ * [FIX-NOOP] RLS USING prevents cross-user deletes at the DB level.
+ *            No user_id payload required.
+ */
 export const deleteItem = async (id: string): Promise<{ error?: string }> => {
   const { error } = await supabase
     .from("inventory_items")
     .delete()
     .eq("id", id);
+
   return error ? { error: error.message } : {};
 };

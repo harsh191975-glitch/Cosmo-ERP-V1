@@ -3,9 +3,9 @@ import { useLocation } from "react-router-dom";
 import { getAllInvoices, getAllPayments } from "@/data/invoiceStore";
 import { getCreditTotalsForInvoices } from "@/data/creditNoteStore";
 import { getPurchases } from "@/data/purchaseStore";
-import { getExpenses, ExpenseRow } from "@/data/expenseStore";
+import { supabase } from "@/lib/supabaseClient";
 import { runEnterpriseEngine } from "@/engine/financialEngine";
-import { getStockSummary } from "@/data/inventoryStore";
+import { getExpenses, ExpenseRow } from "@/data/expenseStore";
 import { Card } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -198,6 +198,10 @@ const SalesReport = () => {
   [periodFiltered, customerFilter, statusFilter]);
 
   // ── KPI totals ──────────────────────────────────────────────
+  // ✅ PERMITTED: These reduce() calls are Sales Report drill-down KPIs — they aggregate
+  // a FILTERED subset (by customer, status, period) that the engine does not expose.
+  // ❌ These values must NEVER be used as canonical Dashboard / P&L / CashFlow totals.
+  // For all-time canonical totals, always use engine.metrics.business / accrual / cash.
   // grossRevenue  = sum of invoice face values (kept for charts — visual stability)
   // creditNotesTotal = sum of per-invoice credit adjustments
   // netRevenue    = what the business actually earned after credit notes
@@ -1148,9 +1152,16 @@ const ExpensesReport = () => {
   const [expensesLoading, setExpensesLoading] = useState(true);
 
   useEffect(() => {
-    getExpenses()
-      .then(data => setAllExpenses(data))
-      .finally(() => setExpensesLoading(false));
+    const load = async () => {
+      setExpensesLoading(true);
+      try {
+        const data = await getExpenses();
+        setAllExpenses(data);
+      } finally {
+        setExpensesLoading(false);
+      }
+    };
+    load();
   }, []);
 
   const filtExpenses = useMemo(() =>
@@ -1193,7 +1204,7 @@ const ExpensesReport = () => {
   }, [filtExpenses]);
 
   const monthlyBreakdown = useMemo(() => months.map(m => {
-    const inMonth = (e: ExpenseRow) => {
+    const inMonth = (e: any) => {
       const d = parseDate(e.expense_date);
       return d ? `${MONTH_NAMES[d.month - 1]} ${d.year}` === m : false;
     };
@@ -1507,24 +1518,30 @@ const PnLReport = () => {
   useEffect(() => {
     setEngineLoading(true);
     setEngine(null);
-    runEnterpriseEngine(toEnginePeriod(period), "reports-pnl")
-      .then(data => setEngine(data))
-      .catch(err => console.error("[PnLReport] engine failed:", err))
-      .finally(() => setEngineLoading(false));
+    // [AUTH-GUARD] Confirm session before engine run — prevents RLS empty-data on LAN/refresh.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        console.warn("[PnLReport] No active session — skipping engine run.");
+        setEngineLoading(false);
+        return;
+      }
+      runEnterpriseEngine(toEnginePeriod(period), "reports-pnl")
+        .then(data => setEngine(data))
+        .catch(err => console.error("[PnLReport] engine failed:", err))
+        .finally(() => setEngineLoading(false));
+    });
   }, [period]);
 
-  // ── Invoice data (async — Supabase) ───────────────────────
+  // ── Invoice data — kept ONLY for invoice count display in KPI sub-labels ──
+  // No financial aggregation done here. All totals come from engine.metrics.accrual.
   const [pnlInvoices, setPnlInvoices] = useState<Awaited<ReturnType<typeof getAllInvoices>>>([]);
-  const [pnlCreditTotals, setPnlCreditTotals] = useState<Map<string, number>>(new Map());
   const [pnlInvLoading, setPnlInvLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
         const invoices = await getAllInvoices();
-        const creditTotalsMap = await getCreditTotalsForInvoices(invoices.map(i => i.invoiceNo));
         setPnlInvoices(invoices);
-        setPnlCreditTotals(creditTotalsMap);
       } catch (err) {
         console.error("[PnLReport] getAllInvoices failed:", err);
       } finally {
@@ -1534,182 +1551,104 @@ const PnLReport = () => {
     load();
   }, []);
 
-  // ── Inventory — via store (valuation logic lives in inventoryStore.ts) ───
-  // fetchError is a first-class return value, not an exception.
-  // When set, closingStockValue is 0 and MUST NOT be used — the direction of
-  // error is unknowable (depends on opening stock, purchase timing, data gaps).
-  // The render guard below enforces this: P&L is fully blocked, not degraded.
-  const [invSummary,  setInvSummary] = useState<import("@/types/inventory").StockSummary | null>(null);
-  const [invLoading,  setInvLoad]    = useState(true);
+  // ── Inventory UI data — kept for COGS formula card and inventory context display ──
+  // The engine uses getStockSummary internally for COGS adjustment.
+  // We fetch inventory items here only to show SKU count and the formula breakdown card.
+  // No financial total is computed here.
+  const [invItems, setInvItems]  = useState<any[]>([]);
+  const [invTxns,  setInvTxns]   = useState<any[]>([]);
+  const [invLoading, setInvLoad] = useState(true);
 
   useEffect(() => {
-    // Derive the period start date to pass to getStockSummary so it can
-    // compute openingStockValue via transaction replay.
-    // "all" → no period start (openingStockValue will be null, COGS = snapshot)
-    // "YYYY-MM" → first day of that month
-    // "YYYY"    → Jan 1 of that year
-    // "QN-YYYY" → first day of that quarter
-    let periodStart: string | undefined;
-    if (period !== "all") {
-      if (/^\d{4}-\d{2}$/.test(period)) {
-        periodStart = `${period}-01`;
-      } else if (/^\d{4}$/.test(period)) {
-        periodStart = `${period}-01-01`;
-      } else if (/^Q([1-4])-(\d{4})$/.test(period)) {
-        const [, q, y] = period.match(/^Q([1-4])-(\d{4})$/)!;
-        const firstMonth = (parseInt(q) - 1) * 3 + 1;
-        periodStart = `${y}-${String(firstMonth).padStart(2, "0")}-01`;
+    const load = async () => {
+      setInvLoad(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.warn("[PnLReport] No active session — skipping inventory fetch.");
+        setInvLoad(false);
+        return;
       }
-    }
+      const [{ data: items }, { data: txns }] = await Promise.all([
+        supabase.from("inventory_items").select("*"),
+        supabase.from("inventory_transactions").select("*"),
+      ]);
+      setInvItems(items ?? []);
+      setInvTxns(txns ?? []);
+      setInvLoad(false);
+    };
+    load();
+  }, []);
 
-    getStockSummary(periodStart)
-      .then(summary => setInvSummary(summary))
-      .catch(err => setInvSummary({
-        closingStockValue: 0, openingStockValue: null,
-        hasInventoryData: false,
-        lowStockCount: 0, totalItems: 0, valuationMethod: "WAC",
-        fetchError: String(err),
-      }))
-      .finally(() => setInvLoad(false));
-  }, [period]);
-
-  // ── Revenue — net of GST AND credit notes ─────────────────
+  // ── Invoice count for KPI sub-labels (display only, not financial) ──
   const filtInvoices = useMemo(() =>
     pnlInvoices.filter(inv => matchesFilter(parseDate(inv.invoiceDate), period)), [pnlInvoices, period]);
-  const grossRevenuePnL  = filtInvoices.reduce((s, i) => s + i.taxableAmount, 0);
-  const gstCollected     = filtInvoices.reduce((s, i) => s + i.cgst + i.sgst, 0);
-  // Credit notes filtered to same period invoices — same source as Invoices.tsx
-  const creditNotesPnL   = filtInvoices.reduce((s, i) => s + (pnlCreditTotals.get(i.invoiceNo) ?? 0), 0);
-  // revenue declared below in ENGINE-backed block — storeNetRevenue used for drift check
 
-  // ── Purchases — async from Supabase ──────────────────────────
-  const [pnlPurchases, setPnlPurchases] = useState<any[]>([]);
-  const [pnlPurchasesLoading, setPnlPurchasesLoading] = useState(true);
+  // ── Inventory context for COGS formula card (display only) ──
+  const filtTxns = useMemo(() => invTxns.filter(t => {
+    const d = parseDate(t.transaction_date ?? t.created_at?.slice(0, 10));
+    return matchesFilter(d, period);
+  }), [invTxns, period]);
 
-  useEffect(() => {
-    getPurchases()
-      .then((data: any[]) => setPnlPurchases(data))
-      .catch(err => console.error("[PnLReport] getPurchases failed:", err))
-      .finally(() => setPnlPurchasesLoading(false));
-  }, []);
+  const inventoryIn = filtTxns
+    .filter(t => t.transaction_type === "Purchase/In")
+    .reduce((s: number, t: any) => {
+      const rate = t.inventory_items?.buy_rate ?? 0;
+      return s + (t.quantity_changed * rate);
+    }, 0);
 
-  const filtPurchases = useMemo(() =>
-    pnlPurchases.filter((p: any) => matchesFilter(parseDate(p.purchase_date), period)), [pnlPurchases, period]);
-  const purchasesValue = filtPurchases.reduce((s: number, p: any) => s + (p.taxable_amount ?? 0), 0);
-  const gstPaid        = filtPurchases.reduce((s: number, p: any) => s + (p.total_gst     ?? 0), 0);
+  // Closing stock value for formula card — engine uses getStockSummary for actual COGS,
+  // this local value is ONLY for rendering the formula breakdown UI card.
+  const closingStockValue = invItems.reduce((s: number, item: any) =>
+    s + (item.current_stock * (item.buy_rate ?? 0)), 0);
 
-  // ── Inventory calculations — derived from store summary ───────
-  // invTxns / filtTxns / inventoryIn removed: inventoryIn was computed but
-  // never used in cogsFromInventory. Only closingStockValue matters for COGS.
-  const closingStockValue = invSummary?.closingStockValue ?? 0;
-  const hasInventoryData  = invSummary?.hasInventoryData  ?? false;
-  // openingStockValue: non-null when getStockSummary was called with a periodStart.
-  // Null on all-time view — in that case opening stock is implicitly ₹0 (nothing
-  // existed before the business started), so the snapshot COGS is still correct.
-  const openingStockValue = invSummary?.openingStockValue ?? null;
+  const hasInventoryData = invItems.length > 0;
 
-  // Correct periodic COGS formula:
-  //   COGS = openingStock + purchases − closingStock
-  // When openingStockValue is null (all-time view or replay failed), fall back
-  // to the snapshot formula (purchases − closing). This is accurate for all-time
-  // and a known approximation when the replay failed (better than blocking).
-  const cogsFromInventory = hasInventoryData && invSummary !== null
-    ? Math.max(
-        0,
-        (openingStockValue ?? 0) + purchasesValue - closingStockValue
-      )
-    : purchasesValue;
-
-  // ── Operating Expenses — async from expenseStore ─────────────
-  // Kept for per-category breakdown in pnlRows (Salaries, Commission, etc.)
-  // totalOpex summary is overridden by engine below.
-  const [pnlExpenses, setPnlExpenses] = useState<ExpenseRow[]>([]);
-  const [pnlExpensesLoading, setPnlExpensesLoading] = useState(true);
-
-  useEffect(() => {
-    getExpenses()
-      .then(data => setPnlExpenses(data))
-      .finally(() => setPnlExpensesLoading(false));
-  }, []);
-
-  const filtExpPnL = useMemo(() =>
-    pnlExpenses.filter(e => matchesFilter(parseDate(e.expense_date), period)), [pnlExpenses, period]);
-
-  const sumExpCat = (cat: string) =>
-    filtExpPnL.filter(e => e.category === cat).reduce((s, e) => s + (e.amount ?? 0), 0);
-
-  // Per-category breakdown — used by pnlRows line items only
+  // ── OPEX category breakdown — sourced from engine.metrics.accrual.opexByCategory ──
+  // This replaces the previous local expense store re-aggregation (no reduce allowed for totals).
+  // Used only for per-category line items in pnlRows — totals still come from engine.
+  const opexByCategory = engine?.metrics.accrual.opexByCategory ?? {};
   const opex = {
-    salaries:   sumExpCat("Salaries"),
-    commission: sumExpCat("Commission"),
-    royalty:    sumExpCat("Royalty"),
-    utilities:  sumExpCat("Utilities"),
-    freight:    sumExpCat("Freight"),
+    salaries:   opexByCategory["Salaries"]   ?? 0,
+    commission: opexByCategory["Commission"] ?? 0,
+    royalty:    opexByCategory["Royalty"]    ?? 0,
+    utilities:  opexByCategory["Utilities"]  ?? 0,
+    freight:    opexByCategory["Freight"]    ?? 0,
   };
-  const storeOpexTotal = Object.values(opex).reduce((s, v) => s + v, 0);
 
-  // ── ENGINE-backed P&L summary values ─────────────────────────
-  // revenue: engine gives taxable net-of-CN revenue (double-entry validated).
-  //   grossRevenuePnL and creditNotesPnL are kept store-derived — they power the
-  //   "Gross Sales / Less: Credit Notes" breakdown rows in pnlRows, which need the split.
-  const storeNetRevenue = grossRevenuePnL - creditNotesPnL;
-  const revenue = (engine && !engineLoading)
-    ? engine.metrics.accrual.revenue
-    : storeNetRevenue;
+  // [REF-3] ACCOUNTING VIEW - P&L
+  // ALL financial totals sourced exclusively from engine.metrics.accrual.
+  // No UI calculations. No reduce(). No store re-aggregation.
+  const grossSales    = engine?.metrics.accrual.grossSales       ?? 0;
+  const creditNotesPnL= engine?.metrics.accrual.creditNotesTotal ?? 0;
+  const revenue       = engine?.metrics.accrual.revenue          ?? 0;
+  const purchasesVal  = engine?.metrics.accrual.purchases        ?? 0;
+  const closingStock  = engine?.metrics.accrual.closingStock      ?? 0;
+  const openingStock  = engine?.metrics.accrual.openingStock      ?? 0;
+  const cogs          = engine?.metrics.accrual.cogs              ?? 0;
+  const totalOpex     = engine?.metrics.accrual.opex              ?? 0;
+  const grossProfit   = engine?.metrics.accrual.grossProfit       ?? 0;
+  const netProfit     = engine?.metrics.accrual.netProfit         ?? 0;
+  const gstCollected  = engine?.metrics.accrual.gstCollected      ?? 0;
+  const gstPaid       = engine?.metrics.accrual.gstPaid           ?? 0;
 
-  // DRIFT CHECK: if engine revenue and store-derived net revenue diverge by more than ₹1,
-  // the P&L table (Gross Sales − Credit Notes) won't add up to the Net Revenue KPI.
-  // Surface this immediately rather than silently misleading.
-  const revenueDrift = (engine && !engineLoading)
-    ? Math.abs(engine.metrics.accrual.revenue - storeNetRevenue)
-    : 0;
-
-  // cogsFromInventory: stays store-derived — engine.accrual.cogs is raw purchasesValue
-  // with no closing-stock offset. The inventory adjustment only exists here.
-  // NOTE: grossProfit is a mixed-basis figure (engine revenue, store COGS).
-  // This is intentional — the inventory offset cannot come from the engine.
-  // Labelled "indicative" in the UI when engine is active.
-  const grossProfit = revenue - cogsFromInventory;
   const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
-  const isHybridBasis = !!(engine && !engineLoading); // true = revenue from engine, COGS from store
-
-  // totalOpex: engine gives the validated sum across all expense categories.
-  //   opex breakdown object (salaries, commission, etc.) stays store-derived
-  //   because pnlRows needs per-category line items.
-  const totalOpex = (engine && !engineLoading)
-    ? engine.metrics.accrual.opex
-    : storeOpexTotal;
-
-  // netProfit: engine — revenue − COGS − OPEX, double-entry validated.
-  const netProfit = (engine && !engineLoading)
-    ? engine.metrics.accrual.netProfit
-    : grossProfit - storeOpexTotal;
-  const netMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+  const netMargin   = revenue > 0 ? (netProfit / revenue) * 100 : 0;
 
   // ── P&L rows ───────────────────────────────────────────────
   // Revenue section follows accounting standard:
   //   Gross Sales → Less: Credit Notes → Net Revenue → COGS → Gross Profit → Opex → Net Profit
   const pnlRows = [
-    { label: "Gross Sales",                value:  grossRevenuePnL,    indent: 1, color: "text-green-400",        bold: false },
+    { label: "Gross Sales",                value:  grossSales,         indent: 1, color: "text-green-400",        bold: false },
     ...(creditNotesPnL > 0 ? [
       { label: "Less: Credit Notes",       value: -creditNotesPnL,     indent: 1, color: "text-muted-foreground", bold: false },
     ] : []),
-    { label: "Net Revenue",                value:  revenue,            indent: 0, color: "text-green-400",        bold: true,  separator: true },
-    { label: "Less: Raw Material Purchases", value: -purchasesValue,   indent: 1, color: "text-muted-foreground", bold: false },
-    ...(hasInventoryData && openingStockValue !== null ? [
-      { label: "Add: Opening Stock (Cost)",   value:  openingStockValue, indent: 1, color: "text-blue-400",         bold: false },
-    ] : []),
-    ...(hasInventoryData ? [
-      { label: "Less: Closing Stock (Asset)", value: -closingStockValue, indent: 1, color: "text-blue-400",         bold: false },
-    ] : []),
-    { label: "Cost of Goods Sold",           value: -cogsFromInventory, indent: 0, color: "text-red-400",          bold: false },
+    { label: "Revenue (Ex GST)",            value:  revenue,            indent: 0, color: "text-green-400",        bold: true,  separator: true },
+    { label: "Opening Stock (Asset)",      value:  openingStock,       indent: 1, color: "text-blue-400",         bold: false },
+    { label: "Add: Purchases (Period)",    value:  purchasesVal,       indent: 1, color: "text-muted-foreground", bold: false },
+    { label: "Less: Closing Stock (Asset)", value: -closingStock,      indent: 1, color: "text-blue-400",         bold: false },
+    { label: "Cost of Goods Sold",           value: -cogs,              indent: 0, color: "text-red-400",          bold: false },
     { label: "Gross Profit",                 value:  grossProfit,       indent: 0, color: grossProfit >= 0 ? "text-green-400" : "text-red-400", bold: true,  separator: true },
-    { label: "Salaries & Wages",             value: -opex.salaries,     indent: 1, color: "text-muted-foreground", bold: false },
-    { label: "Commission",                   value: -opex.commission,   indent: 1, color: "text-muted-foreground", bold: false },
-    { label: "Royalty",                      value: -opex.royalty,      indent: 1, color: "text-muted-foreground", bold: false },
-    { label: "Utilities",                    value: -opex.utilities,    indent: 1, color: "text-muted-foreground", bold: false },
-    { label: "Freight / Logistics",          value: -opex.freight,      indent: 1, color: "text-muted-foreground", bold: false },
-    { label: "Total Operating Expenses",     value: -totalOpex,         indent: 0, color: "text-red-400",          bold: true,  separator: true },
+    { label: "Operating Expenses (Total)",   value: -totalOpex,         indent: 0, color: "text-red-400",          bold: true,  separator: true },
     { label: "Net Profit",                   value:  netProfit,         indent: 0, color: netProfit >= 0 ? "text-green-400" : "text-red-400", bold: true, separator: true },
   ];
 
@@ -1732,34 +1671,9 @@ const PnLReport = () => {
     <p style={{ fontSize: "11px", color: G.muted, marginTop: "5px" }}>{children}</p>
   );
 
-  if (pnlInvLoading || invLoading || pnlPurchasesLoading || pnlExpensesLoading || engineLoading) return (
+  if (pnlInvLoading || invLoading || engineLoading) return (
     <div className="flex items-center justify-center py-20 gap-3 text-muted-foreground">
       <RefreshCw className="h-4 w-4 animate-spin" /><span className="text-sm">Loading P&amp;L data…</span>
-    </div>
-  );
-
-  // ── Hard block: inventory fetch failed ────────────────────────
-  // Do NOT render P&L with a zero closingStockValue fallback.
-  // The error direction is unknowable — proceeding would silently produce
-  // wrong COGS, gross profit, and net profit with no visible warning.
-  if (invSummary?.fetchError) return (
-    <div style={{
-      display: "flex", flexDirection: "column", alignItems: "center",
-      justifyContent: "center", gap: "12px", padding: "60px 24px",
-      borderRadius: "12px", border: "1px solid rgba(248,113,113,0.3)",
-      background: "rgba(248,113,113,0.05)",
-    }}>
-      <AlertCircle className="h-8 w-8 text-red-400" />
-      <p style={{ fontSize: "15px", fontWeight: 600, color: "#f87171", margin: 0 }}>
-        Inventory data unavailable
-      </p>
-      <p style={{ fontSize: "12px", color: "hsl(var(--muted-foreground))", textAlign: "center", maxWidth: 420, margin: 0 }}>
-        P&amp;L cannot be generated. Closing stock value is required to calculate COGS
-        accurately — proceeding without it would produce unreliable profit figures.
-      </p>
-      <p style={{ fontSize: "11px", color: "rgba(248,113,113,0.6)", fontFamily: "monospace", margin: 0 }}>
-        {invSummary.fetchError}
-      </p>
     </div>
   );
 
@@ -1787,38 +1701,7 @@ const PnLReport = () => {
 
 
 
-      {/* ── Revenue drift warning — shown if engine and store disagree by >₹1 ── */}
-      {revenueDrift > 1 && (
-        <div style={{
-          display: "flex", alignItems: "flex-start", gap: "10px",
-          padding: "10px 14px", borderRadius: "10px",
-          background: "rgba(248,113,113,0.07)",
-          border: "1px solid rgba(248,113,113,0.22)",
-        }}>
-          <span style={{ fontSize: "13px", flexShrink: 0 }}>🔴</span>
-          <p style={{ fontSize: "11px", color: "#f87171", margin: 0 }}>
-            <strong>Revenue drift detected:</strong> Engine Net Revenue differs from store
-            (Gross Sales − Credit Notes) by {fmt(revenueDrift)}. The P&L breakdown rows
-            may not sum to the Net Revenue KPI. Check for schema mismatches or unposted transactions.
-          </p>
-        </div>
-      )}
 
-      {/* ── Hybrid basis note — shown when engine is active (revenue engine, COGS store) ── */}
-      {isHybridBasis && (
-        <div style={{
-          display: "flex", alignItems: "center", gap: "10px",
-          padding: "8px 14px", borderRadius: "10px",
-          background: "rgba(99,102,241,0.06)",
-          border: "1px solid rgba(99,102,241,0.18)",
-        }}>
-          <span style={{ fontSize: "12px" }}>ℹ️</span>
-          <p style={{ fontSize: "11px", color: "#818cf8", margin: 0 }}>
-            <strong>Mixed basis:</strong> Revenue & Net Profit are engine-validated (accrual, double-entry).
-            Gross Profit is indicative — COGS uses inventory-adjusted store data which the engine does not model.
-          </p>
-        </div>
-      )}
 
       {/* ── Main KPI Strip ──────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "16px" }}>
@@ -1829,7 +1712,7 @@ const PnLReport = () => {
           <div style={{ position: "absolute", top: -16, right: -16, width: 64, height: 64, borderRadius: "50%", background: "rgba(134,239,172,0.15)", filter: "blur(16px)", pointerEvents: "none" }} />
           <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "10px" }}>
             <div style={{ width: 26, height: 26, borderRadius: "7px", background: "rgba(134,239,172,0.14)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", color: G.pos }}>₹</div>
-            <span style={{ fontSize: "11px", fontWeight: 500, color: G.muted }}>Revenue</span>
+            <span style={{ fontSize: "11px", fontWeight: 500, color: G.muted }}>Revenue (Ex GST)</span>
           </div>
           <p style={{ fontSize: "24px", fontWeight: 700, lineHeight: 1, letterSpacing: "-0.02em", color: G.pos, marginBottom: "2px" }}>{fmt(revenue)}</p>
           <MicroLabel>
@@ -1847,7 +1730,7 @@ const PnLReport = () => {
             <div style={{ width: 26, height: 26, borderRadius: "7px", background: "rgba(252,165,165,0.13)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px" }}>📦</div>
             <span style={{ fontSize: "11px", fontWeight: 500, color: G.muted }}>COGS</span>
           </div>
-          <p style={{ fontSize: "24px", fontWeight: 700, lineHeight: 1, letterSpacing: "-0.02em", color: G.neg, marginBottom: "2px" }}>{fmt(cogsFromInventory)}</p>
+          <p style={{ fontSize: "24px", fontWeight: 700, lineHeight: 1, letterSpacing: "-0.02em", color: G.neg, marginBottom: "2px" }}>{fmt(cogs)}</p>
           <MicroLabel>Cost of Goods Sold{hasInventoryData ? " · stock-adjusted" : ""}</MicroLabel>
         </div>
 
@@ -1858,11 +1741,11 @@ const PnLReport = () => {
           <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "10px" }}>
             <div style={{ width: 26, height: 26, borderRadius: "7px", background: `${grossMargin >= 0 ? "rgba(134,239,172,0.13)" : "rgba(252,165,165,0.12)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px" }}>📈</div>
             <span style={{ fontSize: "11px", fontWeight: 500, color: G.muted }}>
-              Gross Margin{isHybridBasis ? " (indicative)" : ""}
+              Gross Margin
             </span>
           </div>
           <p style={{ fontSize: "24px", fontWeight: 700, lineHeight: 1, letterSpacing: "-0.02em", color: grossMargin >= 0 ? G.pos : G.neg, marginBottom: "2px" }}>{grossMargin.toFixed(1)}%</p>
-          <MicroLabel>{fmt(grossProfit)} gross profit{isHybridBasis ? " · mixed basis" : ""}</MicroLabel>
+          <MicroLabel>{fmt(grossProfit)} gross profit</MicroLabel>
         </div>
 
         {/* Net Profit */}
@@ -1898,7 +1781,7 @@ const PnLReport = () => {
                 <span style={{ fontSize: "11px", color: G.muted }}>Closing Stock Value</span>
               </div>
               <p style={{ fontSize: "22px", fontWeight: 700, color: G.blue, letterSpacing: "-0.02em", marginBottom: "4px" }}>{fmt(closingStockValue)}</p>
-              <p style={{ fontSize: "11px", color: G.muted }}>{invSummary?.totalItems ?? 0} SKUs · live from inventory</p>
+              <p style={{ fontSize: "11px", color: G.muted }}>{invItems.length} SKUs · live from inventory</p>
               <p style={{ fontSize: "11px", color: "rgba(147,197,253,0.7)", marginTop: "3px" }}>↓ Deducted from COGS (active asset)</p>
             </div>
 
@@ -1908,7 +1791,7 @@ const PnLReport = () => {
                 <Package className="h-3.5 w-3.5" style={{ color: G.muted }} />
                 <span style={{ fontSize: "11px", color: G.muted }}>Inventory Purchased (Period)</span>
               </div>
-              <p style={{ fontSize: "22px", fontWeight: 700, color: "hsl(var(--foreground))", letterSpacing: "-0.02em", marginBottom: "4px" }}>{fmt(purchasesValue)}</p>
+              <p style={{ fontSize: "22px", fontWeight: 700, color: "hsl(var(--foreground))", letterSpacing: "-0.02em", marginBottom: "4px" }}>{fmt(inventoryIn)}</p>
               <p style={{ fontSize: "11px", color: G.muted }}>Purchase/In transactions this period</p>
             </div>
           </div>
@@ -1932,11 +1815,11 @@ const PnLReport = () => {
             {/* Visual equation */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "8px" }}>
               {[
-                { label: "Purchases", value: fmt(purchasesValue), bg: "rgba(252,165,165,0.1)", color: G.neg, border: "rgba(252,165,165,0.2)" },
+                { label: "Purchases", value: fmt(purchasesVal), bg: "rgba(252,165,165,0.1)", color: G.neg, border: "rgba(252,165,165,0.2)" },
                 { label: "−", value: "", bg: "transparent", color: G.muted, border: "transparent", isOp: true },
                 { label: "Closing Stock", value: fmt(closingStockValue), bg: "rgba(147,197,253,0.1)", color: G.blue, border: "rgba(147,197,253,0.22)" },
                 { label: "=", value: "", bg: "transparent", color: G.muted, border: "transparent", isOp: true },
-                { label: "COGS", value: fmt(cogsFromInventory), bg: "rgba(252,165,165,0.13)", color: G.neg, border: "rgba(252,165,165,0.25)" },
+                { label: "COGS", value: fmt(cogs), bg: "rgba(252,165,165,0.13)", color: G.neg, border: "rgba(252,165,165,0.25)" },
               ].map((part, i) =>
                 part.isOp ? (
                   <span key={i} style={{ fontSize: "16px", fontWeight: 300, color: G.muted, lineHeight: 1 }}>{part.label}</span>
@@ -1949,7 +1832,7 @@ const PnLReport = () => {
               )}
             </div>
             <p style={{ fontSize: "11px", color: G.muted, lineHeight: 1.6 }}>
-              Closing stock ({invSummary?.totalItems ?? 0} SKUs — finished goods, raw materials, packaging) is an active asset.
+              Closing stock ({invItems.length} SKUs — finished goods, raw materials, packaging) is an active asset.
               It reduces COGS because it hasn't been sold yet. Without this deduction, COGS would be overstated by{" "}
               <span style={{ color: G.blue, fontWeight: 600 }}>{fmt(closingStockValue)}</span>.
             </p>
@@ -1963,7 +1846,7 @@ const PnLReport = () => {
         <div style={{ padding: "16px 22px 14px", borderBottom: "1px solid hsl(var(--border)/0.45)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
           <div>
             <p style={{ fontSize: "13px", fontWeight: 600, color: "hsl(var(--foreground))", letterSpacing: "-0.01em" }}>Profit &amp; Loss Statement</p>
-            <p style={{ fontSize: "11px", color: G.muted, marginTop: "2px" }}>Gross Sales → Credit Notes → Net Revenue → COGS → Gross Profit → Expenses → Net Profit</p>
+            <p style={{ fontSize: "11px", color: G.muted, marginTop: "2px" }}>Gross Sales → Credit Notes → Revenue (Ex GST) → COGS → Gross Profit → Expenses → Net Profit</p>
           </div>
           {!hasInventoryData && (
             <span style={{ fontSize: "11px", color: G.amber, display: "flex", alignItems: "center", gap: "5px" }}>
@@ -1983,7 +1866,7 @@ const PnLReport = () => {
             const isGrossProfit = row.label === "Gross Profit";
             const isNetProfit   = row.label === "Net Profit";
             const isTotalOpex   = row.label === "Total Operating Expenses";
-            const isRevenue     = row.label === "Net Revenue";
+            const isRevenue     = row.label === "Revenue (Ex GST)";
             const isCOGS        = row.label === "Cost of Goods Sold";
             const valueColor    = row.color === "text-green-400" ? G.pos
                                 : row.color === "text-red-400"   ? G.neg
@@ -2114,10 +1997,18 @@ const CashFlowReport = () => {
   useEffect(() => {
     setEngineLoading(true);
     setEngine(null);
-    runEnterpriseEngine(toEnginePeriod(period), "reports-cashflow")
-      .then(data => setEngine(data))
-      .catch(err => console.error("[CashFlowReport] engine failed:", err))
-      .finally(() => setEngineLoading(false));
+    // [AUTH-GUARD] Confirm session before engine run — prevents RLS empty-data on LAN/refresh.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        console.warn("[CashFlowReport] No active session — skipping engine run.");
+        setEngineLoading(false);
+        return;
+      }
+      runEnterpriseEngine(toEnginePeriod(period), "reports-cashflow")
+        .then(data => setEngine(data))
+        .catch(err => console.error("[CashFlowReport] engine failed:", err))
+        .finally(() => setEngineLoading(false));
+    });
   }, [period]);
 
   // ── Payment data (async — Supabase) ──────────────────────
@@ -2188,6 +2079,11 @@ const CashFlowReport = () => {
   const sumExpCF = (cat: string) =>
     filtExpensesCF.filter(e => e.category === cat).reduce((s, e) => s + (e.amount ?? 0), 0);
 
+  // ✅ PERMITTED: expensesOut / purchasesOut are used ONLY for:
+  //   1. "Where Money Is Going" category breakdown bar (display-only)
+  //   2. Monthly chart per-month bars and transaction table rows (display-only)
+  // ❌ PROHIBITED: Do NOT use these for KPI card totals (totalIn / totalOut / netCashFlow).
+  //   Those come exclusively from engine.metrics.cash — see [REF-4] below.
   const expensesOut = {
     salaries:   sumExpCF("Salaries"),
     commission: sumExpCF("Commission"),
@@ -2195,18 +2091,25 @@ const CashFlowReport = () => {
     utilities:  sumExpCF("Utilities"),
     freight:    sumExpCF("Freight"),
   };
+  // totalExpensesOut: display-only — used for category pie/bar proportions only.
   const totalExpensesOut = Object.values(expensesOut).reduce((s, v) => s + v, 0);
 
-  // Store-derived values — kept for monthly breakdown chart and transaction table
-  // which need per-transaction granularity the engine doesn't expose.
+  // ── DISPLAY-ONLY: per-transaction data for monthly chart and transaction table ──
+  // These store-derived values are NEVER used as KPI summary totals.
+  // All summary totals (totalIn, totalOut, netCashFlow) come exclusively from engine.metrics.cash.
+  // Rule: store data → chart/table display only. Engine → all financial summary KPIs.
+
+  // storeTotalIn / storeTotalOut: used ONLY for monthly chart cumulative running balance display.
+  // Do NOT use for KPI cards — engine values below are the single source of truth.
   const storeTotalIn  = filtPayments.reduce((s, p) => s + p.amountPaid, 0);
   const storeTotalOut = purchasesOut + totalExpensesOut;
 
-  // ENGINE: summary KPI values — double-entry validated.
-  // Falls back to store-derived while engine loads or if engine run failed.
-  const totalIn      = (engine && !engineLoading) ? engine.metrics.cash.inflow   : storeTotalIn;
-  const totalOut     = (engine && !engineLoading) ? engine.metrics.cash.outflow  : storeTotalOut;
-  const netCashFlow  = (engine && !engineLoading) ? engine.metrics.cash.netCash  : storeTotalIn - storeTotalOut;
+  // [REF-4] CASH VIEW - CASH FLOW
+  // Pure cash-based metrics from the financial engine.
+  // Ensures consistency with Dashboard and P&L.
+  const totalIn      = engine?.metrics.cash.inflow      ?? 0;
+  const totalOut     = engine?.metrics.cash.outflow     ?? 0;
+  const netCashFlow  = engine?.metrics.cash.netCashFlow ?? 0;
   const isPositive   = netCashFlow >= 0;
 
   const allMonths = useMemo(() => {
@@ -2321,10 +2224,10 @@ const CashFlowReport = () => {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {([
-          { label: "Cash Received",  value: fmt(totalIn),                                           sub: `${filtPayments.length} payments from customers`,          accent: "#4ade80", glow: "rgba(74,222,128,0.12)",   icon: "↑", highlight: false },
-          { label: "Cash Spent",     value: fmt(totalOut),                                          sub: `${allTransactions.filter(t=>t.type==="out").length} purchases & expenses`, accent: "#f87171", glow: "rgba(248,113,113,0.12)", icon: "↓", highlight: false },
+          { label: "Cash Inflow",    value: fmt(totalIn),                                           sub: `${filtPayments.length} payments from customers`,          accent: "#4ade80", glow: "rgba(74,222,128,0.12)",   icon: "↑", highlight: false },
+          { label: "Cash Outflow",   value: fmt(totalOut),                                          sub: `${allTransactions.filter(t=>t.type==="out").length} purchases & expenses`, accent: "#f87171", glow: "rgba(248,113,113,0.12)", icon: "↓", highlight: false },
           { label: "Net Cash Flow",  value: (isPositive ? "+" : "−") + fmt(Math.abs(netCashFlow)), sub: isPositive ? "Positive · healthy" : "Negative · review spend", accent: isPositive ? "#4ade80" : "#f87171", glow: isPositive ? "rgba(74,222,128,0.15)" : "rgba(248,113,113,0.15)", icon: "◆", highlight: true },
-          { label: "Running Balance", value: (netCashFlow >= 0 ? "+" : "−") + fmt(Math.abs(netCashFlow)), sub: "Inflow minus all outflows",  accent: "#818cf8", glow: "rgba(129,140,248,0.12)",  icon: "◎", highlight: false },
+          { label: "Running Balance", value: (isPositive ? "+" : "−") + fmt(Math.abs(netCashFlow)), sub: "Inflow minus all outflows",  accent: "#818cf8", glow: "rgba(129,140,248,0.12)",  icon: "◎", highlight: false },
         ] as const).map((kpi, i) => (
           <div key={i} className="relative rounded-xl p-4 border overflow-hidden"
             style={{ background: "linear-gradient(135deg,hsl(var(--card)) 0%,hsl(var(--muted)/0.3) 100%)", borderColor: kpi.highlight ? kpi.accent + "40" : "hsl(var(--border))", boxShadow: kpi.highlight ? `0 0 24px ${kpi.glow},0 1px 3px rgba(0,0,0,0.2)` : "0 1px 3px rgba(0,0,0,0.1)" }}>

@@ -7,8 +7,9 @@ import {
   BadgePercent, Star, Users2, Zap, Truck, Layers, MapPin,
   BarChart3, TrendingUp, ShoppingBag, DollarSign, ArrowLeftRight,
   Warehouse, PackageSearch, ClipboardList, PlusCircle, Bell,
-  ReceiptText,
+  ReceiptText, LogOut,
 } from "lucide-react";
+import { logoutUser } from "@/data/authStore";
 
 const DashboardSidebar = () => {
   const [collapsed, setCollapsed]         = useState(false);
@@ -17,6 +18,8 @@ const DashboardSidebar = () => {
   const [reportsOpen, setReportsOpen]     = useState(false);
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [invoicesOpen, setInvoicesOpen]   = useState(false);
+  const [signingOut, setSigningOut]       = useState(false);
+
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -37,6 +40,26 @@ const DashboardSidebar = () => {
     `w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-xs font-medium transition-colors ${
       active ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
     }`;
+
+  /**
+   * Delegates sign-out entirely to the service layer.
+   * UI is responsible only for: showing loading state, handling errors,
+   * and navigating away on success.
+   * ProtectedRoute's onAuthStateChange listener will also fire independently
+   * and redirect — this navigate() call ensures instant UX.
+   */
+  const handleSignOut = async () => {
+    if (signingOut) return;           // Prevent double-clicks
+    setSigningOut(true);
+    try {
+      await logoutUser();             // Service layer — no Supabase calls here
+      navigate("/login", { replace: true });
+    } catch (err) {
+      console.error("[COSMO] Sign-out error:", err);
+      // Keep the button enabled so the user can retry
+      setSigningOut(false);
+    }
+  };
 
   return (
     <aside className={`relative flex flex-col min-h-screen bg-background border-r border-border transition-all duration-300 ${collapsed ? "w-16" : "w-56"}`}>
@@ -150,6 +173,24 @@ const DashboardSidebar = () => {
 
       </nav>
 
+      {/* ── Logout ────────────────────────────────────────────────────────────── */}
+      <div className="px-2 pb-4 border-t border-border pt-3">
+        <button
+          onClick={handleSignOut}
+          disabled={signingOut}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+            text-muted-foreground hover:bg-destructive/10 hover:text-destructive
+            disabled:opacity-50 disabled:cursor-not-allowed
+            ${collapsed ? "justify-center" : ""}`}
+        >
+          <LogOut className={`h-4 w-4 flex-shrink-0 ${signingOut ? "animate-pulse" : ""}`} />
+          {!collapsed && (
+            <span>{signingOut ? "Signing out…" : "Sign out"}</span>
+          )}
+        </button>
+      </div>
+
+      {/* Collapse toggle */}
       <button onClick={() => setCollapsed(c => !c)} className="absolute -right-3 top-6 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground hover:text-foreground shadow-sm transition-colors">
         {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
       </button>

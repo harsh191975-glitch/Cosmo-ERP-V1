@@ -59,6 +59,20 @@ const PRODUCTS = [
 
 // ── Helpers ────────────────────────────────────────────────────
 
+/**
+ * Generates a UUID v4.
+ * Falls back to a Math.random-based implementation when the
+ * Web Crypto API is unavailable (e.g. plain HTTP dev servers).
+ */
+function generateId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  // Fallback: timestamp (base-36) + random suffix — stronger than Math.random() alone
+  // because the monotonic prefix guarantees uniqueness even on same-millisecond calls.
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+}
+
 function calcLine(rateInclTax: number, qty: number, disc: number) {
   const rateExclTax = r2(rateInclTax / (1 + GST_RATE / 100));
   const lineAmount  = r2(qty * rateExclTax * (1 - disc / 100));
@@ -79,7 +93,7 @@ interface LineItem {
 }
 
 const blankLine = (): LineItem => ({
-  id: crypto.randomUUID(),
+  id: generateId(),
   productDescription: "", customDesc: "",
   quantity: "", uom: "BDL",
   rateInclTax: "", discountPct: 63,

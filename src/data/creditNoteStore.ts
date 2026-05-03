@@ -14,7 +14,7 @@
  * See src/pages/Invoices.tsx and InvoiceDetail.tsx for reference.
  */
 
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, getCurrentUserId } from "@/lib/supabaseClient";
 
 // ── Domain types ───────────────────────────────────────────────────────────────
 
@@ -70,10 +70,12 @@ export interface NewCreditNote {
 function rowToCreditNote(row: any): CreditNote {
   let lineItems: CreditNoteLineItem[] = [];
   try {
-    lineItems = typeof row.line_items === "string"
-      ? JSON.parse(row.line_items)
-      : Array.isArray(row.line_items)
-        ? row.line_items
+    // column is jsonb → driver gives us a plain array already.
+    // Guard against legacy rows that were accidentally stored as a JSON string.
+    lineItems = Array.isArray(row.line_items)
+      ? row.line_items
+      : typeof row.line_items === "string"
+        ? JSON.parse(row.line_items)
         : [];
   } catch {
     lineItems = [];
@@ -191,17 +193,30 @@ export async function getCreditTotalsForInvoices(
 // ── Save a new credit note ────────────────────────────────────────────────────
 
 export async function saveCreditNote(input: NewCreditNote): Promise<CreditNote> {
-  const cnNumber = await getNextCreditNoteNumber();
+  const [cnNumber, userId] = await Promise.all([
+    getNextCreditNoteNumber(),
+    getCurrentUserId(),
+  ]);
+
+  // Guard: if the session isn't hydrated yet, userId will be null and the
+  // RLS policy (user_id = auth.uid()) will reject the insert silently.
+  if (!userId) {
+    throw new Error("[creditNoteStore] saveCreditNote: no authenticated user — cannot insert (RLS would reject)");
+  }
 
   const { data, error } = await supabase
     .from("credit_notes")
     .insert({
+      user_id:            userId,
       credit_note_number: cnNumber,
       invoice_no:         input.invoiceNo,
       customer_name:      input.customerName,
       date:               input.date,
       reason:             input.reason,
-      line_items:         JSON.stringify(input.lineItems),
+      // Pass the array directly — the column is jsonb, not text.
+      // JSON.stringify() causes double-encoding: the driver serialises it again,
+      // landing a raw string in the DB instead of a JSON array.
+      line_items:         input.lineItems,
       taxable_amount:     input.taxableAmount,
       cgst:               input.cgst,
       sgst:               input.sgst,
@@ -212,7 +227,11 @@ export async function saveCreditNote(input: NewCreditNote): Promise<CreditNote> 
     .single();
 
   if (error || !data) {
-    throw new Error(`[creditNoteStore] saveCreditNote: ${error?.message}`);
+    // Surface the full Supabase error so it appears in the console and can be
+    // caught and displayed by the UI — not swallowed into "Failed to save".
+    throw new Error(
+      `[creditNoteStore] saveCreditNote failed — code: ${error?.code}, message: ${error?.message}, details: ${error?.details}, hint: ${error?.hint}`,
+    );
   }
 
   return rowToCreditNote(data);

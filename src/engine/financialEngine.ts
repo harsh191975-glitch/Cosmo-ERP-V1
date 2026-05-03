@@ -1,5 +1,5 @@
 // src/data/financialEngine.ts
-// finance-insights-main V 2.24
+// finance-insights-main V 2.26
 // FIX LOG:
 //   [FIX-1] Import getAllInvoices + getAllPayments from invoiceStore (correct names, no paymentStore)
 //   [FIX-2] Trial balance now accumulates DR/CR separately — was always trivially balanced
@@ -9,12 +9,20 @@
 //   [FIX-6] gross_amount is optional in ExpenseSchema with fallback to amount
 //   [FIX-7] AuditLog typed properly
 //   [FIX-8] Invoice + Payment normalization shims — store returns camelCase, schemas expect snake_case
+//   [FIX-10] Dedup key uses index-qualified fallback `EXP-date-amount-idxN` when no DB id present,
+//            preventing same-date/same-amount expenses collapsing into one DUPE_ID skip.
+//   [FIX-11] ExpenseSchema: .nullable().optional() on gross_amount and tds_amount; z.coerce.number()
+//            on amount fields. Supabase returns SQL NULL as JSON null — Zod's plain .optional()
+//            only permits undefined, so null-valued rows failed safeParse and were silently dropped.
+//            Root cause of ~₹5L inflated profit (only ₹1.32L of ₹6.34L expenses posting).
 
 import { z } from "zod";
 import { getAllInvoices, getAllPayments } from "@/data/invoiceStore"; // [FIX-1] correct exported names
 import { getPurchases } from "@/data/purchaseStore";
 import { getExpenses } from "@/data/expenseStore";
 import { getAllCreditNotes } from "@/data/creditNoteStore";
+import { getStockSummary } from "@/data/inventoryStore";
+import { supabase } from "@/lib/supabaseClient";
 
 // ════════════════════════════════════════════════════════════════════════════
 // 1. GLOBAL CONFIG & UTILS
@@ -96,11 +104,19 @@ const PurchaseSchema = BaseRecord.extend({
     total_amount: z.number().nonnegative(),
 });
 
-// [FIX-6] gross_amount optional — fallback to amount if not present
+// [FIX-11] ExpenseSchema — null-safe for Supabase JSON output.
+// Supabase returns SQL NULL as JSON null. Zod's .optional() permits undefined but rejects null,
+// so any row where gross_amount or tds_amount is NULL in the DB fails safeParse entirely and is
+// silently skipped via `if (!parsed.success) continue`. This was the root cause of only
+// ~₹1.32L of ₹6.34L in expenses posting to the ledger.
+// Fix: .nullable().optional() on every column that can be NULL in the DB.
+// z.coerce.number() also handles edge cases where Supabase returns a numeric string.
+// IDs are UUIDs (confirmed) — BaseRecord's z.string().uuid() is correct and retained.
 const ExpenseSchema = BaseRecord.extend({
     expense_date: z.string(),
-    amount: z.number().nonnegative(),
-    gross_amount: z.number().nonnegative().optional(),
+    amount: z.coerce.number().nonnegative(),
+    gross_amount: z.coerce.number().nonnegative().nullable().optional(),
+    tds_amount: z.coerce.number().nullable().optional(),
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -160,7 +176,7 @@ class GeneralLedger {
     post(dateStr: string, dr: AccountName, cr: AccountName, amount: number, ref: string) {
         if (amount <= 0) return;
         this.entries.push({
-            id: crypto.randomUUID(),
+            id: (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `je-${Date.now()}-${Math.random().toString(36).slice(2)}`,
             timestamp: Date.now(),
             period: toPeriodKey(dateStr), // [FIX-3] always "YYYY-MM"
             drAccount: dr,
@@ -316,13 +332,82 @@ export async function runEnterpriseEngine(
 
     const metadata = { snapshotId: dbSnapshotId, targetPeriod, executedAt: new Date().toISOString() };
 
-    // [FIX-1] getAllInvoices + getAllPayments — correct exported names from invoiceStore
-    const [rawInvoices, rawPayments, rawPurchases, rawExpenses, rawCns] = await Promise.all([
-        getAllInvoices(), getAllPayments(), getPurchases(), getExpenses(), getAllCreditNotes(),
-    ]);
+    // [AUTH-GUARD] Ensure an authenticated Supabase session exists before any RLS-protected
+    // query runs. Without this, RLS silently returns empty result sets when the session has
+    // not yet been hydrated from storage — causing the engine to produce zeroed-out reports.
+    // This is the root cause of localhost vs LAN-IP data inconsistency.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+        console.warn("[COSMO Engine] No active session — returning HALTED state.");
+        return {
+            metadata: { targetPeriod, runDate: new Date().toISOString(), session: "MISSING" },
+            status: "HALTED",
+            dqs: 0,
+            metrics: {
+                business: { totalRevenue: 0, amountCollected: 0, outstanding: 0, creditNoteTotal: 0, cashBasedProfit: 0, collectionRate: 0, totalExpenses: 0, totalPurchasesGross: 0 },
+                accrual: { revenue: 0, purchases: 0, closingStock: 0, openingStock: 0, cogs: 0, opex: 0, grossProfit: 0, netProfit: 0 },
+                cash: { inflow: 0, outflow: 0, netCashFlow: 0 },
+                balanceSheet: { ar: 0, gstPayable: 0, tdsLiability: 0, suspensePmt: 0, suspenseCn: 0 },
+                trialBalance: { isBalanced: true, totalDebits: 0, totalCredits: 0, discrepancy: 0, details: {} },
+            },
+            exportLedger: () => "[]",
+            audit,
+        };
+    }
+
+    // [NEW] Resolve periodStart for inventory replay if needed
+    let periodStart: string | undefined = undefined;
+    if (targetPeriod !== "all") {
+        if (targetPeriod.startsWith("Q")) {
+            const [q, y] = targetPeriod.split("-");
+            const month = (parseInt(q.slice(1)) - 1) * 3 + 1;
+            periodStart = `${y}-${String(month).padStart(2, '0')}-01`;
+        } else if (targetPeriod.length === 4) {
+            periodStart = `${targetPeriod}-01-01`;
+        } else if (targetPeriod.length === 7) {
+            periodStart = `${targetPeriod}-01-01`;
+        }
+    }
+
+    let rawInvoices: Awaited<ReturnType<typeof getAllInvoices>> = [];
+    let rawPayments: Awaited<ReturnType<typeof getAllPayments>> = [];
+    let rawPurchases: Awaited<ReturnType<typeof getPurchases>> = [];
+    let rawExpenses: Awaited<ReturnType<typeof getExpenses>> = [];
+    let rawCns: Awaited<ReturnType<typeof getAllCreditNotes>> = [];
+
+    try {
+        const [invData, pmtData, purData, expData, cnData, stockData] = await Promise.all([
+            getAllInvoices(),
+            getAllPayments(),
+            getPurchases(),
+            getExpenses(),
+            getAllCreditNotes(),
+            getStockSummary(periodStart)
+        ]);
+        rawInvoices = invData;
+        rawPayments = pmtData;
+        rawPurchases = purData;
+        rawExpenses = expData;
+        rawCns = cnData;
+        const stockSummary = stockData;
+
+        // [NEW] Store stock summary for COGS adjustment
+        (metadata as any).stockSummary = stockSummary;
+
+        console.log(
+            `[COSMO Engine] User: ${session.user.id} | ` +
+            `Invoices: ${rawInvoices.length}, Payments: ${rawPayments.length}, ` +
+            `Purchases: ${rawPurchases.length}, Expenses: ${rawExpenses.length}, CNs: ${rawCns.length} | ` +
+            `Stock: ${stockSummary.hasInventoryData ? "YES" : "NO"}`
+        );
+    } catch (err: any) {
+        console.error("[COSMO Engine] Fatal data fetch error:", err);
+        audit.record("CRITICAL", "DATA_LOAD_FAIL", "SYSTEM", 0, `Failed to fetch datasets: ${err.message}`);
+    }
 
     // Dual-track graph to separate AR (post-tax) limit from revenue (pre-tax) base
     const invoiceGraph = new Map<string, {
+        date: string;       // [NEW] Track date for business-view filtering
         tot: number;        // total (post-tax) in paise — AR limit
         tax: number;        // taxable (pre-tax) in paise — revenue base
         appliedPmtTot: number;  // total payments applied (post-tax)
@@ -365,6 +450,7 @@ export async function runEnterpriseEngine(
         if (checkDuplicate(inv.id || inv.invoice_no, totInt)) continue;
 
         invoiceGraph.set(inv.invoice_no, {
+            date: inv.invoice_date,
             tot: totInt, tax: taxInt,
             appliedPmtTot: 0, appliedCnTot: 0, appliedCnTax: 0,
         });
@@ -491,9 +577,19 @@ export async function runEnterpriseEngine(
     }
 
     // ── INGEST EXPENSES ──
-    for (const raw of rawExpenses) {
+    // [FIX-10] Dedup key uses String(exp.id) when a database id is present (numeric or UUID).
+    // Fallback includes loop index `i` to prevent false-dedup of distinct expenses that share
+    // the same date and amount (e.g. multiple employees with identical salary on the same date).
+    // Without the index, `EXP-2026-01-500000` would match for every ₹5000 expense on 2026-01-*,
+    // causing all but the first to be skipped as DUPE_ID — the root cause of the ₹1.32L vs ₹6.34L gap.
+    for (let i = 0; i < rawExpenses.length; i++) {
+        const raw = rawExpenses[i];
         const parsed = ExpenseSchema.safeParse(raw);
-        if (!parsed.success) continue;
+        if (!parsed.success) {
+            // Log schema failures so they are visible in the audit trail rather than silently dropped.
+            audit.record("WARN", "EXP_SCHEMA", `EXP-row-${i}`, 0, "Expense row failed schema validation", raw);
+            continue;
+        }
         const exp = parsed.data;
 
         // [FIX-6] Fallback: if gross_amount not present in store, treat net amount as gross (no TDS)
@@ -502,12 +598,18 @@ export async function runEnterpriseEngine(
         const tdsInt = Math.max(0, grossInt - netInt); // guard negative TDS from data errors
 
         audit.metrics.processedVal += grossInt;
-        if (checkDuplicate(exp.id || `EXP-${exp.expense_date}-${grossInt}`, grossInt)) continue;
+
+        // Dedup key: prefer the database id (coerced to string); fall back to index-qualified
+        // composite key so two distinct same-date/same-amount rows are never collapsed.
+        const expDedupKey = exp.id != null
+            ? `EXP-id-${String(exp.id)}`
+            : `EXP-${exp.expense_date}-${grossInt}-idx${i}`;
+        if (checkDuplicate(expDedupKey, grossInt)) continue;
 
         if (isPeriod(toPeriodKey(exp.expense_date), targetPeriod, periodSet)) {
-            GL.post(exp.expense_date, "OPEX", "CASH", netInt, exp.id || "N/A");
+            GL.post(exp.expense_date, "OPEX", "CASH", netInt, expDedupKey);
             if (tdsInt > 0) {
-                GL.post(exp.expense_date, "OPEX", "TDS_PAYABLE", tdsInt, exp.id || "N/A");
+                GL.post(exp.expense_date, "OPEX", "TDS_PAYABLE", tdsInt, expDedupKey);
             }
         }
     }
@@ -553,28 +655,143 @@ export async function runEnterpriseEngine(
         );
     }
 
-    // [FIX-4] getBalance now returns unsigned magnitudes for all accounts.
-    // REVENUE, COGS, OPEX are all positive magnitudes — P&L uses natural subtraction.
+    // [REF-1] BUSINESS VIEW CALCULATIONS
+    let busGrossRev = 0;
+    let busCnTot = 0;
+    let busOutstanding = 0;
+
+    for (const [_, inv] of invoiceGraph) {
+        if (isPeriod(toPeriodKey(inv.date), targetPeriod, periodSet)) {
+            busGrossRev += inv.tot;
+            busCnTot += inv.appliedCnTot;
+            busOutstanding += Math.max(0, inv.tot - inv.appliedPmtTot - inv.appliedCnTot);
+        }
+    }
+
+    const busNetRev = busGrossRev - busCnTot;
+    const busCollected = cashFlow.inflow;
+    const busCollectionRate = busNetRev > 0 ? (busCollected / busNetRev) * 100 : 0;
+
+    // [REF-2] ACCOUNTING VIEW - Accrual Totals (Taxable only)
     const revenue = GL.getBalance("REVENUE", targetPeriod, "period");
-    const cogs = GL.getBalance("COGS", targetPeriod, "period");
-    const opex = GL.getBalance("OPEX", targetPeriod, "period");
+    const cogs    = GL.getBalance("COGS", targetPeriod, "period");
+    const opex    = GL.getBalance("OPEX", targetPeriod, "period");
+
+    // [REF-3] ACCOUNTING VIEW - Inventory Adjustment
+    const stockSummary = (metadata as any).stockSummary;
+    const closingStock = toPaise(stockSummary?.closingStockValue ?? 0);
+    const openingStock = toPaise(stockSummary?.openingStockValue ?? 0);
+    const cogsAdjusted = Math.max(0, cogs + openingStock - closingStock);
 
     return {
         metadata,
         status: (audit.getDQS() < 98.0 || !trialBalance.isBalanced) ? "HALTED" : "SUCCESS",
         dqs: audit.getDQS(),
         metrics: {
+            // 1. BUSINESS VIEW (Dashboard) - Intuitive, GST-inclusive
+            // totalRevenue: "Total Revenue (Incl. GST)" — net of credit notes, includes GST collected.
+            //   This is the headline number on the Dashboard. Do NOT use for P&L (accrual.revenue is ex-GST).
+            // cashBasedProfit: "Cash Profit" — cash collected minus cash spent. NOT the same as P&L Net Profit.
+            //   Rename this "Cash Profit" in all UI labels. Avoid "Net Profit" on Dashboard to prevent confusion.
+            business: {
+                totalRevenue: toCurrency(busNetRev), // Net of CNs, incl GST
+                amountCollected: toCurrency(busCollected),
+                outstanding: toCurrency(busOutstanding),
+                creditNoteTotal: toCurrency(busCnTot),
+                cashBasedProfit: toCurrency(busCollected - cashFlow.outflow),
+                collectionRate: Number(busCollectionRate.toFixed(2)),
+                // Operational totals for Dashboard expense/purchase display — no UI re-computation needed.
+                // totalExpenses: net OPEX cash paid (taxable only, matches OPEX ledger entries DR OPEX/CR CASH).
+                // totalPurchasesGross: total cash paid to suppliers incl. GST, derived from CASH credits
+                //   posted for purchases (COGS→CASH taxable + GST_PAYABLE→CASH gst component).
+                //   This is pure ledger math — zero reduce() calls on raw data.
+                totalExpenses: toCurrency(opex),
+                totalPurchasesGross: toCurrency((() => {
+                    // Sum all CASH credits from purchase-related postings within the period:
+                    //   DR COGS / CR CASH  (taxable portion)
+                    //   DR GST_PAYABLE / CR CASH  (GST portion)
+                    // Together these equal total_amount paid to suppliers.
+                    let purchaseCash = 0;
+                    for (const je of GL.entries) {
+                        if (!isPeriod(je.period, targetPeriod, periodSet)) continue;
+                        if (je.crAccount === "CASH" && (je.drAccount === "COGS" || je.drAccount === "GST_PAYABLE")) {
+                            purchaseCash += je.amount;
+                        }
+                    }
+                    return purchaseCash;
+                })()),
+            },
+            // 2. ACCOUNTING VIEW (P&L) - Strict Accrual, Taxable-only
             accrual: {
                 revenue: toCurrency(revenue),
-                cogs: toCurrency(cogs),
+                purchases: toCurrency(cogs), // raw purchases (taxable only)
+                closingStock: toCurrency(closingStock),
+                openingStock: toCurrency(openingStock),
+                cogs: toCurrency(cogsAdjusted), // inventory-adjusted
                 opex: toCurrency(opex),
-                grossProfit: toCurrency(revenue - cogs),
-                netProfit: toCurrency(revenue - cogs - opex),
+                grossProfit: toCurrency(revenue - cogsAdjusted),
+                netProfit: toCurrency(revenue - cogsAdjusted - opex),
+                // P&L waterfall line items — eliminates need for invoice re-aggregation in UI
+                grossSales: toCurrency(
+                    (() => {
+                        // Taxable amount before credit notes — for P&L "Gross Sales" line
+                        let total = 0;
+                        for (const [, inv] of invoiceGraph) {
+                            if (isPeriod(toPeriodKey(inv.date), targetPeriod, periodSet)) {
+                                total += inv.tax; // taxable in paise
+                            }
+                        }
+                        return total;
+                    })()
+                ),
+                creditNotesTotal: toCurrency(
+                    (() => {
+                        // Credit notes applied in period — taxable component only (matches REVENUE reversal)
+                        let total = 0;
+                        for (const [, inv] of invoiceGraph) {
+                            if (isPeriod(toPeriodKey(inv.date), targetPeriod, periodSet)) {
+                                total += inv.appliedCnTax;
+                            }
+                        }
+                        return total;
+                    })()
+                ),
+                gstCollected: toCurrency(GL.getBalance("GST_PAYABLE", targetPeriod, "period")),
+                gstPaid: toCurrency(
+                    (() => {
+                        // GST paid to suppliers = sum of GST_PAYABLE debits from purchase entries
+                        // These are the entries posted as: DR GST_PAYABLE / CR CASH for purchase GST
+                        let gstPaidTotal = 0;
+                        for (const je of GL.entries) {
+                            if (!isPeriod(je.period, targetPeriod, periodSet)) continue;
+                            if (je.drAccount === "GST_PAYABLE" && je.crAccount === "CASH") {
+                                gstPaidTotal += je.amount;
+                            }
+                        }
+                        return gstPaidTotal;
+                    })()
+                ),
+                // Per-category OPEX breakdown — eliminates need for expense store re-aggregation in UI
+                opexByCategory: (() => {
+                    const catMap: Record<string, number> = {};
+                    for (const raw of rawExpenses) {
+                        const cat = (raw as any).category ?? "Other";
+                        const netInt = toPaise((raw as any).amount ?? 0);
+                        if (!isPeriod(toPeriodKey((raw as any).expense_date ?? ""), targetPeriod, periodSet)) continue;
+                        catMap[cat] = (catMap[cat] ?? 0) + netInt;
+                    }
+                    // Return as currency values
+                    const result: Record<string, number> = {};
+                    for (const [k, v] of Object.entries(catMap)) result[k] = toCurrency(v);
+                    return result;
+                })(),
             },
+            // 3. CASH VIEW (Cash Flow) - Pure liquidity
             cash: {
                 inflow: toCurrency(cashFlow.inflow),
                 outflow: toCurrency(cashFlow.outflow),
-                netCash: toCurrency(cashFlow.net),
+                netCashFlow: toCurrency(cashFlow.net),
+                // Balance tracking can be added if opening balance is provided
             },
             balanceSheet: {
                 ar: toCurrency(GL.getBalance("AR", targetPeriod, "cumulative")),

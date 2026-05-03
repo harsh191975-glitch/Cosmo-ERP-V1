@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabaseClient";
 import { runEnterpriseEngine } from "@/engine/financialEngine";
 import {
   getAllPayments,
@@ -8,7 +9,12 @@ import {
   Payment,
 } from "@/data/invoiceStore";
 import { getPurchases } from "@/data/purchaseStore";
-import { getExpenses, sumByCategory, ExpenseRow } from "@/data/expenseStore";
+import { getExpenses } from "@/data/expenseStore";
+// ⚠️ ARCHITECTURE RULE: getPurchases and getExpenses are imported for type-checking only.
+// They are intentionally NOT called in this component.
+// ALL financial KPI totals — expenses, purchases, revenue, profit — flow exclusively
+// through runEnterpriseEngine(). No UI-level aggregation is permitted.
+// Raw store data is only used for: transaction lists, monthly charts, invoice status counts.
 import {
   IndianRupee, TrendingUp, AlertCircle, CheckCircle,
   Clock, ArrowRight, RefreshCw, ArrowUpRight, Zap,
@@ -19,14 +25,7 @@ import {
   Tooltip, ResponsiveContainer,
 } from "recharts";
 
-// ── Types ───────────────────────────────────────────────────────
-// ExpenseRow imported from @/data/expenseStore — single source of truth.
 
-interface Purchase {
-  total_amount: number;   // matches Supabase column — purchaseStore returns this field
-  purchase_date: string;  // "YYYY-MM-DD"
-  [key: string]: unknown;
-}
 
 // ── Formatters ──────────────────────────────────────────────────
 const fmt  = (n: number) => "₹" + n.toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -112,12 +111,8 @@ const Index = () => {
   // ── State ────────────────────────────────────────────────────
   const [invoicesWithPayments, setInvoicesWithPayments] = useState<EnrichedInvoice[]>([]);
   const [payments,             setPayments]             = useState<Payment[]>([]);
-  const [expenses,             setExpenses]             = useState<ExpenseRow[]>([]);
-  const [purchases,            setPurchases]            = useState<Purchase[]>([]);
 
   const [loadingInvoices,  setLoadingInvoices]  = useState(true);
-  const [loadingExpenses,  setLoadingExpenses]  = useState(true);
-  const [loadingPurchases, setLoadingPurchases] = useState(true);
 
   // ── Engine state ─────────────────────────────────────────────
   type EngineResult = Awaited<ReturnType<typeof runEnterpriseEngine>>;
@@ -141,35 +136,17 @@ const Index = () => {
     }
   }, []);
 
-  const fetchExpenses = useCallback(async () => {
-    setLoadingExpenses(true);
-    try {
-      const data = await getExpenses();
-      setExpenses(data ?? []);
-    } catch (err) {
-      console.error("[Index] fetchExpenses failed:", err);
-      setExpenses([]);
-    } finally {
-      setLoadingExpenses(false);
-    }
-  }, []);
-
-  const fetchPurchases = useCallback(async () => {
-    setLoadingPurchases(true);
-    try {
-      const data = await getPurchases();
-      setPurchases(data ?? []);
-    } catch (err) {
-      console.error("[Index] fetchPurchases failed:", err);
-      setPurchases([]);
-    } finally {
-      setLoadingPurchases(false);
-    }
-  }, []);
-
   const fetchEngine = useCallback(async () => {
     setLoadingEngine(true);
     try {
+      // [AUTH-GUARD] Do not run the engine until the Supabase session is confirmed.
+      // Without this, RLS returns empty rows on origins that load the JWT from
+      // storage asynchronously (e.g. LAN IP access, hard refresh on non-localhost).
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.warn("[Index] fetchEngine: no active session — skipping engine run.");
+        return;
+      }
       const result = await runEnterpriseEngine("all", "dashboard");
       setEngine(result);
     } catch (err) {
@@ -180,55 +157,59 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    fetchInvoiceData();
-    fetchExpenses();
-    fetchPurchases();
-    fetchEngine();
-  }, [fetchInvoiceData, fetchExpenses, fetchPurchases, fetchEngine]);
+    // [AUTH-GUARD] Wait for the Supabase session to be hydrated from storage before
+    // firing any store fetches. On LAN-IP or after hard refresh, the JWT is read
+    // asynchronously from localStorage — calling stores before this completes causes
+    // RLS to reject queries and return empty data, producing zeroed-out dashboards.
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.warn("[Index] init: no active session — skipping all data fetches.");
+        // Set all loading states to false so the UI doesn't hang on spinners.
+        setLoadingInvoices(false);
+        setLoadingEngine(false);
+        return;
+      }
+      fetchInvoiceData();
+      fetchEngine();
+    }
+    init();
+  }, [fetchInvoiceData, fetchEngine]);
 
-  // ── Expense KPIs — 100% from Supabase expense store ─────────
-  // sumByCategory is imported from expenseStore — no local reimplementation.
-  const totalSalaries   = sumByCategory(expenses, "Salaries");
-  const totalCommission = sumByCategory(expenses, "Commission");
-  const totalRoyalty    = sumByCategory(expenses, "Royalty");
-  const totalUtilities  = sumByCategory(expenses, "Utilities");
-  const totalFreight    = sumByCategory(expenses, "Freight");
+  // ── Expense KPIs — sourced exclusively from engine.metrics.business
+  // No local reduce() or sumByCategory() — all totals flow through the financial engine.
+  // Per-category breakdown uses engine.metrics.accrual.opexByCategory for display only.
+  const opexByCategory = engine?.metrics.accrual.opexByCategory ?? {};
+  const totalSalaries   = opexByCategory["Salaries"]   ?? 0;
+  const totalCommission = opexByCategory["Commission"] ?? 0;
+  const totalRoyalty    = opexByCategory["Royalty"]    ?? 0;
+  const totalUtilities  = opexByCategory["Utilities"]  ?? 0;
+  const totalFreight    = opexByCategory["Freight"]    ?? 0;
 
-  const totalExpenses = totalSalaries + totalCommission + totalRoyalty + totalUtilities + totalFreight;
+  // [BUSINESS VIEW] Engine is the single source — no re-aggregation allowed
+  const totalExpenses = engine?.metrics.business.totalExpenses ?? 0;
 
-  // ── Purchase KPIs — 100% from Supabase purchase store ───────
-  const totalPurchases = purchases.reduce((s, p) => s + (Number(p.total_amount) || 0), 0);
+  // ── Purchase KPIs — sourced exclusively from engine.metrics.business
+  const totalPurchases = engine?.metrics.business.totalPurchasesGross ?? 0;
 
-  // ── Revenue KPIs ─────────────────────────────────────────────
-  // ENGINE is source of truth for: Amount Collected (cash.inflow) and Net Profit (accrual.netProfit).
-  // Store-derived values used for: Net Revenue, Outstanding — because:
-  //   - Net Revenue: engine.accrual.revenue is taxable-only (pre-GST). Dashboard shows
-  //     gross invoiced total (totalAmount incl. GST+freight) per original display convention.
-  //   - Outstanding: store per-invoice Math.max(0,...) is more accurate than AR journal balance
-  //     which has minor rounding drift across 42 invoices.
-  const grossRevenue     = invoicesWithPayments.reduce((s, d) => s + d.totalAmount,      0);
-  const creditNotesTotal = invoicesWithPayments.reduce((s, d) => s + d.totalCreditNotes, 0);
-
-  // STORE: gross invoiced total − credit notes (incl. GST + freight)
-  const netRevenue       = grossRevenue - creditNotesTotal;
-  // ENGINE: cash inflow — double-entry validated, correct source for collected amount
-  const totalCollected   = engine ? engine.metrics.cash.inflow : invoicesWithPayments.reduce((s, d) => s + d.totalPaid, 0);
-  // STORE: per-invoice outstanding sum — avoids AR journal rounding drift
-  const totalOutstanding = invoicesWithPayments.reduce((s, d) => s + d.outstanding, 0);
-  // ENGINE: accrual net profit — single source of truth, matches P&L exactly.
-  // Uses taxable revenue (net of CNs), taxable COGS (excl. GST input credit), validated OPEX.
-  // Falls back to cash-minus-costs only while engine is loading.
-  const netProfit = (engine && !loadingEngine)
-    ? engine.metrics.accrual.netProfit
-    : totalCollected - totalPurchases - totalExpenses;
-
-  const collectionRate = netRevenue > 0 ? (totalCollected / netRevenue) * 100 : 0;
+  // [BUSINESS VIEW] Engine is the single source — no re-aggregation allowed
+  const netRevenue       = engine?.metrics.business.totalRevenue     ?? 0; // Total Revenue (Incl. GST)
+  const totalCollected   = engine?.metrics.business.amountCollected  ?? 0;
+  const totalOutstanding = engine?.metrics.business.outstanding      ?? 0;
+  const creditNotesTotal = engine?.metrics.business.creditNoteTotal  ?? 0;
+  // cashProfit: cash collected minus cash spent. Label as "Cash Profit" in UI — NOT "Net Profit".
+  // "Net Profit" is the P&L accrual figure (engine.metrics.accrual.netProfit). These differ by timing.
+  const cashProfit       = engine?.metrics.business.cashBasedProfit  ?? 0;
+  const collectionRate   = engine?.metrics.business.collectionRate   ?? 0;
 
   const paidCount    = invoicesWithPayments.filter(d => d.status === "Paid").length;
   const partialCount = invoicesWithPayments.filter(d => d.status === "Partial").length;
   const pendingCount = invoicesWithPayments.filter(d => d.status === "Pending").length;
   const overdueCount = invoicesWithPayments.filter(d => d.status === "Overdue").length;
 
+  // growthPct: Month-on-Month growth percentage for the trend indicator badge.
+  // ✅ PERMITTED raw data use: this is a display-only chart metric (not a KPI total).
+  // Architecture rule: raw store data → charts/tables only. Engine → all financial KPI totals.
   const growthPct = useMemo(() => {
     const months = [...new Set(invoicesWithPayments.map(d => d.invoiceDate.slice(0, 7)))].sort();
     if (months.length >= 2) {
@@ -297,7 +278,7 @@ const Index = () => {
     backdropFilter: "blur(12px)",
   } as React.CSSProperties;
 
-  const isLoading = loadingInvoices || loadingExpenses || loadingPurchases || loadingEngine;
+  const isLoading = loadingInvoices || loadingEngine;
 
   // ── Loading skeleton ─────────────────────────────────────────
   if (isLoading) {
@@ -316,8 +297,6 @@ const Index = () => {
         <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "24px 0" }}>
           {[
             !loadingInvoices  && "✓ Invoices & payments",
-            !loadingExpenses  && "✓ Expenses",
-            !loadingPurchases && "✓ Purchases",
             !loadingEngine    && "✓ Financial engine",
           ].filter(Boolean).map(msg => (
             <p key={String(msg)} style={{ fontSize: 12, color: "#34d399", margin: 0 }}>{String(msg)}</p>
@@ -425,9 +404,9 @@ const Index = () => {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14, marginBottom: 36 }}>
 
-          {/* Net Revenue */}
+          {/* Total Revenue (Incl. GST) */}
           <KpiTile
-            label="Net Revenue"
+            label="Total Revenue (Incl. GST)"
             value={fmtL(netRevenue)}
             sub={creditNotesTotal > 0
               ? `${invoicesWithPayments.length} invoices · −${fmtL(creditNotesTotal)} credit notes`
@@ -458,15 +437,15 @@ const Index = () => {
             urgent={totalOutstanding > netRevenue * 0.3}
           />
 
-          {/* Net Profit */}
+          {/* Cash Profit */}
           <KpiTile
-            label="Net Profit"
-            value={fmtL(Math.abs(netProfit))}
-            sub={netProfit >= 0 ? "After expenses & purchases (accrual)" : "Currently at a loss"}
-            accent={netProfit >= 0 ? "#34d399" : "#f87171"}
-            icon={<BarChart3 size={16} color={netProfit >= 0 ? "#34d399" : "#f87171"} />}
-            glow={netProfit >= 0 ? "rgba(52,211,153,0.12)" : "rgba(248,113,113,0.12)"}
-            negative={netProfit < 0}
+            label="Cash Profit"
+            value={fmtL(Math.abs(cashProfit))}
+            sub={cashProfit >= 0 ? "Cash in minus cash out (liquidity view)" : "Currently spending more than collecting"}
+            accent={cashProfit >= 0 ? "#34d399" : "#f87171"}
+            icon={<BarChart3 size={16} color={cashProfit >= 0 ? "#34d399" : "#f87171"} />}
+            glow={cashProfit >= 0 ? "rgba(52,211,153,0.12)" : "rgba(248,113,113,0.12)"}
+            negative={cashProfit < 0}
           />
 
           {/* Collection Rate */}

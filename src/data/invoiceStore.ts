@@ -13,7 +13,7 @@
  * See src/pages/Invoices.tsx and InvoiceDetail.tsx for reference.
  */
 
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, getCurrentUserId } from "@/lib/supabaseClient";
 import {
   deleteCreditNotesByInvoice,
   getTotalCreditForInvoiceAsync,
@@ -245,8 +245,10 @@ export async function getNextInvoiceNo(baseDate = new Date()): Promise<string> {
 // ── Write: save invoice ───────────────────────────────────────────────────────
 
 export async function saveInvoice(invoice: Invoice): Promise<void> {
+  const userId = await getCurrentUserId();
   const { error } = await supabase.from("invoices").upsert(
     {
+      user_id:            userId,
       invoice_no:         invoice.invoiceNo,
       invoice_date:       invoice.invoiceDate,
       booked_by:          invoice.bookedBy          ?? null,
@@ -276,9 +278,11 @@ export async function saveInvoice(invoice: Invoice): Promise<void> {
 // ── Write: save payment ───────────────────────────────────────────────────────
 
 export async function savePayment(p: NewPayment): Promise<Payment> {
+  const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from("invoice_payments")
     .insert({
+      user_id:        userId,
       invoice_no:     p.invoiceNo,
       customer_name:  p.customerName,
       amount_paid:    p.amountPaid,
