@@ -19,6 +19,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/supabaseClient", () => ({
   supabase: {
+    auth: {
+      getSession: vi.fn().mockResolvedValue({
+        data: {
+          session: {
+            user: { id: "test-user-id" },
+          },
+        },
+        error: null,
+      }),
+    },
     from: () => ({
       select: () => ({
         order: () => ({ data: [], error: null }),
@@ -33,6 +43,7 @@ vi.mock("@/lib/supabaseClient", () => ({
       delete: () => ({ eq: () => ({ error: null }) }),
       update: () => ({ eq: () => ({ error: null }) }),
     }),
+    rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
   },
 }));
 
@@ -72,6 +83,10 @@ describe("Financial Engine — runEnterpriseEngine", () => {
     creditNotes: any[],
     period = "all",
   ) {
+    // Reset the module registry so dynamic import() below gets fresh modules
+    // that use our vi.doMock overrides instead of the cached originals.
+    vi.resetModules();
+
     vi.doMock("@/data/invoiceStore", () => ({
       getAllInvoices: vi.fn().mockResolvedValue(invoices),
       getAllPayments: vi.fn().mockResolvedValue(payments),
@@ -85,6 +100,16 @@ describe("Financial Engine — runEnterpriseEngine", () => {
     vi.doMock("@/data/creditNoteStore", () => ({
       getAllCreditNotes: vi.fn().mockResolvedValue(creditNotes),
     }));
+    vi.doMock("@/data/inventoryStore", () => ({
+      getStockSummary: vi.fn().mockResolvedValue({
+        hasInventoryData: false,
+        closingStockValue: 0,
+        openingStockValue: 0,
+        totalItems: 0,
+        totalQuantity: 0,
+      }),
+      txDirection,
+    }));
 
     // Force re-import to pick up fresh mocks
     const { runEnterpriseEngine } = await import("@/engine/financialEngine");
@@ -94,6 +119,7 @@ describe("Financial Engine — runEnterpriseEngine", () => {
     vi.doUnmock("@/data/purchaseStore");
     vi.doUnmock("@/data/expenseStore");
     vi.doUnmock("@/data/creditNoteStore");
+    vi.doUnmock("@/data/inventoryStore");
 
     return result;
   }
@@ -111,7 +137,7 @@ describe("Financial Engine — runEnterpriseEngine", () => {
     expect(result.metrics.accrual.netProfit).toBe(0);
     expect(result.metrics.cash.inflow).toBe(0);
     expect(result.metrics.cash.outflow).toBe(0);
-    expect(result.metrics.cash.netCash).toBe(0);
+    expect(result.metrics.cash.netCashFlow).toBe(0);
     expect(result.metrics.trialBalance.isBalanced).toBe(true);
     expect(result.metrics.trialBalance.discrepancy).toBe(0);
   });
@@ -212,7 +238,7 @@ describe("Financial Engine — runEnterpriseEngine", () => {
     const result = await runEngine([], payments, [], [], []);
 
     expect(result.metrics.balanceSheet.suspensePmt).toBe(2000);
-    expect(result.audit.logs.some((l: any) => l.code === "ORPHAN_PMT")).toBe(true);
+    expect(result.audit.logs.some((l) => l.code === "ORPHAN_PMT")).toBe(true);
   });
 
   // ── Scenario: Purchases → COGS + cash outflow ──────────────────────────
@@ -358,7 +384,7 @@ describe("Financial Engine — runEnterpriseEngine", () => {
     // Only the valid invoice should be processed for revenue
     expect(result.metrics.accrual.revenue).toBe(5000);
     // Schema failure should be logged
-    expect(result.audit.logs.some((l: any) => l.code === "INV_SCHEMA")).toBe(true);
+    expect(result.audit.logs.some((l) => l.code === "INV_SCHEMA")).toBe(true);
   });
 
   // ── Scenario: DQS drops below 98 → HALTED status ──────────────────────
@@ -388,7 +414,7 @@ describe("Financial Engine — runEnterpriseEngine", () => {
 
     const result = await runEngine(invoices, [], [], [], []);
 
-    expect(result.audit.logs.some((l: any) => l.code === "DUPE_ID")).toBe(true);
+    expect(result.audit.logs.some((l) => l.code === "DUPE_ID")).toBe(true);
     // Revenue should only include the first one
     expect(result.metrics.accrual.revenue).toBe(5000);
   });
@@ -397,9 +423,17 @@ describe("Financial Engine — runEnterpriseEngine", () => {
   it("should include correct metadata in the engine result", async () => {
     const result = await runEngine([], [], [], [], [], "2026-03");
 
-    expect(result.metadata.snapshotId).toBe("test-snapshot-001");
-    expect(result.metadata.targetPeriod).toBe("2026-03");
-    expect(result.metadata.executedAt).toBeTruthy();
+    expect(result.status).toBe("SUCCESS");
+
+    // Narrow the metadata union via structural type guard:
+    // `status === "SUCCESS"` only narrows `result.status`, not `result.metadata`,
+    // because the two properties aren't linked in a discriminated union.
+    // `"snapshotId" in result.metadata` narrows to the success-path shape directly.
+    if ("snapshotId" in result.metadata) {
+      expect(result.metadata.snapshotId).toBe("test-snapshot-001");
+      expect(result.metadata.targetPeriod).toBe("2026-03");
+      expect(result.metadata.executedAt).toBeTruthy();
+    }
   });
 
   // ── Scenario: Ledger export produces valid JSON ─────────────────────────
@@ -431,6 +465,7 @@ describe("purchaseStore — summarizePurchases", () => {
     id: "test-id",
     invoice_no: "PO-001",
     purchase_date: "2026-01-15",
+    supplier_id: "default-supplier-id",
     supplier_name: "Supplier A",
     category: "raw-materials",
     taxable_amount: 10000,
@@ -452,6 +487,7 @@ describe("purchaseStore — summarizePurchases", () => {
     expect(summary.totalOrders).toBe(0);
     expect(Object.keys(summary.byCategory)).toHaveLength(0);
     expect(Object.keys(summary.bySupplier)).toHaveLength(0);
+    expect(Object.keys(summary.bySupplierName)).toHaveLength(0);
     expect(Object.keys(summary.byMonth)).toHaveLength(0);
   });
 
@@ -486,17 +522,37 @@ describe("purchaseStore — summarizePurchases", () => {
 
   it("should group purchases by supplier with lastDate tracking", () => {
     const purchases = [
-      makePurchase({ supplier_name: "Alpha", purchase_date: "2026-01-10", total_amount: 4000 }),
-      makePurchase({ supplier_name: "Alpha", purchase_date: "2026-03-20", total_amount: 6000 }),
-      makePurchase({ supplier_name: "Beta",  purchase_date: "2026-02-15", total_amount: 3000 }),
+      makePurchase({ supplier_id: "supplier-alpha", supplier_name: "Alpha", purchase_date: "2026-01-10", total_amount: 4000 }),
+      makePurchase({ supplier_id: "supplier-alpha", supplier_name: "Alpha", purchase_date: "2026-03-20", total_amount: 6000 }),
+      makePurchase({ supplier_id: "supplier-beta", supplier_name: "Beta", purchase_date: "2026-02-15", total_amount: 3000 }),
     ];
 
     const summary = summarizePurchases(purchases);
 
-    expect(summary.bySupplier["Alpha"].spend).toBe(10000);
-    expect(summary.bySupplier["Alpha"].orders).toBe(2);
-    expect(summary.bySupplier["Alpha"].lastDate).toBe("2026-03-20");
-    expect(summary.bySupplier["Beta"].spend).toBe(3000);
+    expect(summary.bySupplier["supplier-alpha"].spend).toBe(10000);
+    expect(summary.bySupplier["supplier-alpha"].orders).toBe(2);
+    expect(summary.bySupplier["supplier-alpha"].lastDate).toBe("2026-03-20");
+    expect(summary.bySupplier["supplier-beta"].spend).toBe(3000);
+
+    // bySupplierName — human-readable keys for UI charts/reports
+    expect(summary.bySupplierName["Alpha"].spend).toBe(10000);
+    expect(summary.bySupplierName["Alpha"].orders).toBe(2);
+    expect(summary.bySupplierName["Alpha"].lastDate).toBe("2026-03-20");
+    expect(summary.bySupplierName["Beta"].spend).toBe(3000);
+    expect(summary.bySupplierName["Beta"].orders).toBe(1);
+  });
+
+  it("should fall back to 'Unknown Supplier' when supplier_name is empty", () => {
+    const purchases = [
+      makePurchase({ supplier_id: "anon-1", supplier_name: "", purchase_date: "2026-01-01", total_amount: 500 }),
+    ];
+
+    const summary = summarizePurchases(purchases);
+
+    // ID-keyed map still uses supplier_id — no fallback needed
+    expect(summary.bySupplier["anon-1"].spend).toBe(500);
+    // Name-keyed map falls back to "Unknown Supplier"
+    expect(summary.bySupplierName["Unknown Supplier"].spend).toBe(500);
   });
 
   it("should group purchases by month", () => {
@@ -520,11 +576,11 @@ describe("purchaseStore — summarizePurchases", () => {
 
 describe("expenseStore — sumByCategory", () => {
   const expenses: ExpenseRow[] = [
-    { id: "e1", expense_date: "2026-01-01", category: "Salaries",   amount: 25000 },
-    { id: "e2", expense_date: "2026-01-01", category: "Salaries",   amount: 30000 },
+    { id: "e1", expense_date: "2026-01-01", category: "Salaries", amount: 25000 },
+    { id: "e2", expense_date: "2026-01-01", category: "Salaries", amount: 30000 },
     { id: "e3", expense_date: "2026-01-01", category: "Commission", amount: 5000 },
-    { id: "e4", expense_date: "2026-01-01", category: "Utilities",  amount: 3000 },
-    { id: "e5", expense_date: "2026-01-01", category: "Freight",    amount: 8000 },
+    { id: "e4", expense_date: "2026-01-01", category: "Utilities", amount: 3000 },
+    { id: "e5", expense_date: "2026-01-01", category: "Freight", amount: 8000 },
   ];
 
   it("should sum all expenses for a given category", () => {

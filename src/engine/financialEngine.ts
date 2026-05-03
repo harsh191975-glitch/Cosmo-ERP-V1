@@ -674,8 +674,8 @@ export async function runEnterpriseEngine(
 
     // [REF-2] ACCOUNTING VIEW - Accrual Totals (Taxable only)
     const revenue = GL.getBalance("REVENUE", targetPeriod, "period");
-    const cogs    = GL.getBalance("COGS", targetPeriod, "period");
-    const opex    = GL.getBalance("OPEX", targetPeriod, "period");
+    const cogs = GL.getBalance("COGS", targetPeriod, "period");
+    const opex = GL.getBalance("OPEX", targetPeriod, "period");
 
     // [REF-3] ACCOUNTING VIEW - Inventory Adjustment
     const stockSummary = (metadata as any).stockSummary;

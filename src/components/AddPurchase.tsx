@@ -11,9 +11,10 @@ import {
 import {
   getSuppliers,
   createSupplier,
+  createPurchaseWithRpc,
   type Supplier,
 } from "@/data/purchaseStore";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient"; // still used for inventory_items master load
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -407,49 +408,32 @@ export const AddPurchase = ({ onClose, onSaved }: AddPurchaseProps) => {
     return Object.keys(e).length === 0;
   };
 
-  // ── Save ─────────────────────────────────────────────────────────
+  // ── Save ────────────────────────────────────────────────────────────────
+  // Single atomic RPC call — DB owns all calculations and both inserts.
+  // Frontend sends only raw inputs; no derived fields (taxable_amount,
+  // cgst, sgst, total_amount) are computed or passed from here.
   const handleSave = async () => {
     if (!validate()) return;
     setSaving(true);
     try {
-      const { data: purchase, error: pErr } = await supabase
-        .from("purchases")
-        .insert({
-          supplier_id:    supplierId,
-          supplier_name:  supplierName,
-          invoice_no:     invoiceNo.trim(),
-          purchase_date:  date,
-          category,
-          freight:        Number(freight) || 0,
-          taxable_amount: totals.taxable,
-          cgst:           totals.cgst,
-          sgst:           totals.sgst,
-          igst:           0,
-          total_amount:   totals.grand,
-          notes:          notes || null,
-          source:         "manual",
-        })
-        .select("id")
-        .single();
-
-      if (pErr || !purchase) throw new Error(pErr?.message ?? "Failed to save purchase header");
-
-      const lineInserts = lines.map(li => ({
-        purchase_id:       purchase.id,
-        inventory_item_id: li.inventory_item_id || null,
-        product_name:      li.product_name.trim(),
-        item_category:     li.item_category,
-        quantity:          Number(li.quantity),
-        unit_of_measure:   li.unit_of_measure,
-        rate:              Number(li.rate),
-        gst_pct:           li.gst_pct,
-        taxable_value:     li.taxable_value,
-        gst_amount:        li.gst_amount,
-        line_total:        li.line_total,
-      }));
-
-      const { error: liErr } = await supabase.from("purchase_line_items").insert(lineInserts);
-      if (liErr) throw new Error(liErr.message);
+      await createPurchaseWithRpc({
+        p_supplier_id: supplierId,
+        p_invoice_no:  invoiceNo.trim(),
+        p_date:        date,
+        p_category:    category,
+        p_freight:     Number(freight) || 0,
+        p_notes:       notes || null,
+        p_line_items:  lines.map(li => ({
+          product_name:      li.product_name.trim(),
+          item_category:     li.item_category,
+          quantity:          Number(li.quantity),
+          unit_of_measure:   li.unit_of_measure,
+          rate:              Number(li.rate),
+          gst_pct:           li.gst_pct,
+          // taxable_value, gst_amount, line_total omitted — DB calculates
+          inventory_item_id: li.inventory_item_id || null,
+        })),
+      });
 
       setSaved(true);
       setTimeout(() => { onSaved(); onClose(); }, 1200);

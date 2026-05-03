@@ -325,6 +325,79 @@ export async function createPurchaseWithItems(
   return result;
 }
 
+// ── RPC input types ───────────────────────────────────────────────
+
+/**
+ * Minimal line item payload sent to the DB RPC.
+ * Only raw user inputs — no derived/calculated fields.
+ * The DB function `create_purchase_with_items` computes:
+ *   taxable_value, gst_amount, line_total, taxable_amount, cgst, sgst, total_amount.
+ */
+export interface RpcLineItem {
+  product_name:      string;
+  item_category:     string;
+  quantity:          number;
+  unit_of_measure:   string;
+  rate:              number;
+  gst_pct:           number;
+  inventory_item_id: string | null;
+}
+
+export interface CreatePurchaseRpcInput {
+  p_supplier_id: string;
+  p_invoice_no:  string;
+  p_date:        string;          // "YYYY-MM-DD"
+  p_category:    string;
+  p_freight:     number;
+  p_notes:       string | null;
+  p_line_items:  RpcLineItem[];
+}
+
+/**
+ * Create a purchase atomically via a single Supabase RPC call.
+ *
+ * Replaces the two-step pattern of:
+ *   supabase.from("purchases").insert(...)
+ *   supabase.from("purchase_line_items").insert(...)
+ *
+ * Benefits:
+ *  - Atomic: header rollback is handled inside the DB function on any failure.
+ *  - RLS-safe: the RPC executes server-side — avoids direct RLS policy blocks
+ *    on purchase_line_items that caused the original insert error.
+ *  - DB-authoritative: all derived financials (taxable_amount, cgst, sgst,
+ *    total_amount, line_total) are computed server-side, preventing client drift.
+ *
+ * @throws Error with message from DB if validation or insert fails.
+ */
+export async function createPurchaseWithRpc(
+  input: CreatePurchaseRpcInput
+): Promise<Purchase> {
+  if (!input.p_supplier_id?.trim()) throw new Error("Supplier is required.");
+  if (!input.p_invoice_no?.trim())  throw new Error("Invoice number is required.");
+  if (!input.p_date)                throw new Error("Purchase date is required.");
+  if (input.p_line_items.length === 0) throw new Error("At least one line item is required.");
+
+  const { data, error } = await supabase.rpc("create_purchase_with_items", {
+    p_supplier_id: input.p_supplier_id,
+    p_invoice_no:  input.p_invoice_no,
+    p_date:        input.p_date,
+    p_category:    input.p_category,
+    p_freight:     input.p_freight,
+    p_notes:       input.p_notes,
+    p_line_items:  input.p_line_items,
+  });
+
+  if (error) throw new Error(`createPurchaseWithRpc: ${error.message}`);
+
+  // RPC returns the new purchase id — re-fetch with full relational join
+  const raw = data as { id: string } | string;
+  const id  = typeof raw === "string" ? raw : raw.id;
+
+  const result = await getPurchaseById(id);
+  if (!result) throw new Error("createPurchaseWithRpc: could not fetch purchase after insert");
+  return result;
+}
+
 /**
  * Delete a purchase by ID.
  * FK cascade in DB removes line items automatically.
@@ -357,6 +430,14 @@ export interface PurchaseSummary {
    * Use `supplierName` inside each entry for display only.
    */
   bySupplier: Record<string, SupplierSummaryEntry>;
+  /**
+   * Keyed by display name (supplier_name) — for UI charts, labels, reports.
+   * Derived at aggregation time from each Purchase record's display-only
+   * `supplier_name` field. Two suppliers with the same display name but
+   * different `supplier_id`s will be merged here (name collision).
+   * For identity-safe logic, always use `bySupplier` (ID-keyed) instead.
+   */
+  bySupplierName: Record<string, { spend: number; orders: number; lastDate: string }>;
   byMonth: Record<string, number>;
 }
 
@@ -368,6 +449,7 @@ export function summarizePurchases(purchases: Purchase[]): PurchaseSummary {
     totalOrders:  purchases.length,
     byCategory:   {},
     bySupplier:   {},
+    bySupplierName: {},
     byMonth:      {},
   };
 
@@ -394,6 +476,14 @@ export function summarizePurchases(purchases: Purchase[]): PurchaseSummary {
     sup.orders += 1;
     if (p.purchase_date > sup.lastDate) sup.lastDate = p.purchase_date;
     summary.bySupplier[p.supplier_id] = sup;
+
+    // ── Supplier grouping — keyed by display name (for UI) ─────────
+    const displayName = p.supplier_name || "Unknown Supplier";
+    const byName = summary.bySupplierName[displayName] ?? { spend: 0, orders: 0, lastDate: "" };
+    byName.spend  += p.total_amount;
+    byName.orders += 1;
+    if (p.purchase_date > byName.lastDate) byName.lastDate = p.purchase_date;
+    summary.bySupplierName[displayName] = byName;
 
     // ── Month grouping ─────────────────────────────────────────────
     const month = p.purchase_date.slice(0, 7);
