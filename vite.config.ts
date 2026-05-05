@@ -29,4 +29,24 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // React core — cached independently; changes least often
+          vendor: ["react", "react-dom", "react-router-dom"],
+          // Supabase client — large, rarely updated
+          supabase: ["@supabase/supabase-js"],
+          // Radix UI + lucide icons — large, rarely updated
+          ui: [
+            "lucide-react",
+            "@radix-ui/react-select",
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-tabs",
+            "@radix-ui/react-dropdown-menu",
+          ],
+        },
+      },
+    },
+  },
 }));

@@ -36,7 +36,7 @@ import type {
   StockSummary,
   StockMutationResult,
   TransactionType,
-} from "@/types/inventory";
+} from "@/data/inventory";
 
 // ── [FIX-CAT] Corrected item categories ───────────────────────────────────
 // ⚠️  These THREE values are the ONLY ones accepted by the DB check constraint

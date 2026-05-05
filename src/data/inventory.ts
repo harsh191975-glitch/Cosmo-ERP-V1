@@ -1,4 +1,4 @@
-// src/types/inventory.ts
+// src/data/inventory.ts
 // Single source of truth for inventory domain types.
 // Previously coupled to supabaseClient.ts — moved here so pages, stores,
 // and the engine can import types without pulling in the DB client.

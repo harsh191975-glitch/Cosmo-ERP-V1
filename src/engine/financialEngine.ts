@@ -393,13 +393,6 @@ export async function runEnterpriseEngine(
 
         // [NEW] Store stock summary for COGS adjustment
         (metadata as any).stockSummary = stockSummary;
-
-        console.log(
-            `[COSMO Engine] User: ${session.user.id} | ` +
-            `Invoices: ${rawInvoices.length}, Payments: ${rawPayments.length}, ` +
-            `Purchases: ${rawPurchases.length}, Expenses: ${rawExpenses.length}, CNs: ${rawCns.length} | ` +
-            `Stock: ${stockSummary.hasInventoryData ? "YES" : "NO"}`
-        );
     } catch (err: any) {
         console.error("[COSMO Engine] Fatal data fetch error:", err);
         audit.record("CRITICAL", "DATA_LOAD_FAIL", "SYSTEM", 0, `Failed to fetch datasets: ${err.message}`);
