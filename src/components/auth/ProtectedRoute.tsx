@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabaseClient'
 import type { User } from '@supabase/supabase-js'
 
@@ -69,10 +69,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   if (!user) {
     // Fallback redirect for any unauthenticated render that didn't go through
     // the SIGNED_OUT event (e.g. direct URL access with no session).
-    // Using useNavigate here instead of window.location keeps us inside the
-    // React Router context and preserves the SPA history stack behaviour.
-    navigate('/login', { replace: true })
-    return null
+    // Navigate renders declaratively, avoiding a router state update during render.
+    return <Navigate to="/login" replace />
   }
 
   return <>{children}</>

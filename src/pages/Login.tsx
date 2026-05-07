@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import LoginCard from './LoginCard'
+import { MetricsStrip, ProductWalkthrough, AISection, FeaturesGrid, CTAFooter } from './LandingSections'
 
 // ─── Error message mapping ── UNCHANGED ──────────────────────────────────────
 function mapAuthError(message: string): string {
@@ -31,6 +32,8 @@ const GlobalStyles = () => (
       position: fixed; top: 0; left: 0; right: 0; z-index: 40;
       display: flex; align-items: center; justify-content: space-between;
       padding: 22px clamp(24px, 6vw, 80px);
+      background: linear-gradient(180deg, rgba(2,5,16,0.62), rgba(2,5,16,0));
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
     }
     .cn-brand { display: flex; align-items: center; gap: 12px; }
     .cn-wordmark { display: flex; flex-direction: column; line-height: 1; }
@@ -43,16 +46,6 @@ const GlobalStyles = () => (
       font-style: italic; font-weight: 300; font-size: 10.5px;
       color: rgba(148,163,184,0.5); letter-spacing: 0.05em; margin-top: 3px;
     }
-    .cn-navlinks {
-      display: flex; align-items: center; gap: 34px;
-      list-style: none; margin: 0; padding: 0;
-    }
-    .cn-navlinks li a {
-      text-decoration: none; font-family: 'Sora', sans-serif;
-      font-size: 13px; font-weight: 400; color: rgba(148,163,184,0.68);
-      letter-spacing: 0.01em; transition: color 0.15s;
-    }
-    .cn-navlinks li a:hover { color: rgba(255,255,255,0.92); }
     .cn-nav-cta {
       font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 600;
       color: #fff; letter-spacing: 0.03em; cursor: pointer;
@@ -78,6 +71,7 @@ const GlobalStyles = () => (
       background: rgba(59,130,246,0.08);
       border: 1px solid rgba(59,130,246,0.22);
       margin-bottom: 26px;
+      box-shadow: 0 0 34px rgba(59,130,246,0.08);
     }
     .cn-badge-dot {
       width: 6px; height: 6px; border-radius: 50%; background: #60a5fa;
@@ -85,10 +79,32 @@ const GlobalStyles = () => (
     }
 
     /* ── Hero ── */
+    .cn-hero-shell {
+      position: relative; z-index: 10;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 150px clamp(22px, 6vw, 96px) 90px;
+      isolation: isolate;
+    }
+    .cn-hero-shell::after {
+      content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 30vh;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(2,5,16,0), #020510 82%);
+      z-index: 12;
+    }
+    .cn-hero-content {
+      width: min(1040px, 100%);
+      text-align: center;
+      display: flex; flex-direction: column; align-items: center;
+      animation: cn-fade-up 0.88s cubic-bezier(0.16,1,0.3,1) 0.08s both;
+      z-index: 16;
+    }
     .cn-headline {
       font-family: 'Sora', sans-serif; font-weight: 800;
-      font-size: clamp(46px, 5.8vw, 84px); line-height: 1.02;
-      color: #fff; letter-spacing: -0.025em; margin: 0 0 6px 0;
+      font-size: clamp(52px, 8.4vw, 126px); line-height: 0.94;
+      color: #fff; letter-spacing: -0.04em; margin: 0 0 6px 0;
+      text-wrap: balance;
+      text-shadow: 0 0 50px rgba(59,130,246,0.18);
     }
     .cn-headline-accent {
       background: linear-gradient(125deg, #4facfe 0%, #a78bfa 48%, #38bdf8 100%);
@@ -98,11 +114,11 @@ const GlobalStyles = () => (
     .cn-sub {
       font-family: 'Sora', sans-serif; font-size: clamp(14px, 1.4vw, 17px);
       font-weight: 300; color: rgba(148,163,184,0.62);
-      line-height: 1.72; max-width: 440px; margin: 24px 0 42px 0;
+      line-height: 1.72; max-width: 620px; margin: 28px auto 42px;
     }
 
     /* ── CTA group ── */
-    .cn-ctas { display: flex; align-items: center; gap: 14px; }
+    .cn-ctas { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
     .cn-cta-primary {
       position: relative; overflow: hidden;
       padding: 14px 30px; border-radius: 100px;
@@ -142,9 +158,10 @@ const GlobalStyles = () => (
 
     /* ── Trust strip ── */
     .cn-trust {
-      display: flex; align-items: center; gap: 12px; margin-top: 48px;
+      display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 48px;
       font-family: 'Sora', sans-serif; font-size: 11.5px; font-weight: 400;
       color: rgba(148,163,184,0.42);
+      flex-wrap: wrap;
     }
     .cn-trust-div { width: 1px; height: 13px; background: rgba(255,255,255,0.1); }
 
@@ -185,8 +202,8 @@ const GlobalStyles = () => (
       to   { transform: rotate(-360deg); }
     }
     @keyframes cn-float {
-      0%,100% { transform: translateY(0px); }
-      50%      { transform: translateY(-16px); }
+      0%,100% { transform: translate3d(0, 0, 0); }
+      50%      { transform: translate3d(0, -16px, 0); }
     }
     @keyframes cn-pulse {
       0%,100% { opacity: 0.55; }
@@ -197,11 +214,57 @@ const GlobalStyles = () => (
       to   { opacity:1; transform: translateY(0); }
     }
 
-    .cn-hero-content { animation: cn-fade-up 0.88s cubic-bezier(0.16,1,0.3,1) 0.08s both; }
+    @keyframes cn-gradient-drift {
+      0%,100% { transform: translate3d(-2%, -1%, 0) scale(1); }
+      50% { transform: translate3d(2%, 2%, 0) scale(1.04); }
+    }
+    @keyframes cn-star-drift {
+      from { transform: translate3d(0, 0, 0); }
+      to { transform: translate3d(-42px, 28px, 0); }
+    }
+    @keyframes cn-particle-rise {
+      0% { transform: translate3d(0, 32px, 0); opacity: 0; }
+      18%, 72% { opacity: var(--op); }
+      100% { transform: translate3d(var(--dx), -46px, 0); opacity: 0; }
+    }
+    .cn-ambient-gradient {
+      position: absolute; inset: -18%; pointer-events: none; opacity: 0.82;
+      background:
+        radial-gradient(circle at 50% 36%, rgba(96,165,250,0.15), transparent 28%),
+        radial-gradient(circle at 34% 58%, rgba(167,139,250,0.12), transparent 26%),
+        radial-gradient(circle at 68% 62%, rgba(56,189,248,0.1), transparent 28%);
+      filter: blur(18px);
+      animation: cn-gradient-drift 18s ease-in-out infinite;
+    }
+    .cn-grid-noise {
+      position: absolute; inset: 0; pointer-events: none; opacity: 0.22;
+      background-image:
+        linear-gradient(rgba(148,163,184,0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148,163,184,0.045) 1px, transparent 1px),
+        radial-gradient(rgba(255,255,255,0.12) 0.7px, transparent 0.7px);
+      background-size: 72px 72px, 72px 72px, 4px 4px;
+      mask-image: radial-gradient(circle at 50% 42%, black, transparent 72%);
+    }
+    .cn-particles {
+      position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 15;
+    }
+    .cn-particle {
+      position: absolute; width: 3px; height: 3px; border-radius: 50%;
+      background: rgba(191,219,254,0.82);
+      box-shadow: 0 0 18px rgba(96,165,250,0.75);
+      opacity: 0;
+      animation: cn-particle-rise var(--dur) ease-in-out infinite;
+      animation-delay: var(--delay);
+    }
 
     /* ── Responsive hide navlinks ── */
     @media (max-width: 768px) {
-      .cn-navlinks { display: none; }
+      .cn-nav { padding: 18px 20px; }
+      .cn-wordmark-by { display: none; }
+      .cn-nav-cta { padding: 9px 16px; }
+      .cn-hero-shell { padding-top: 128px; min-height: 92vh; }
+      .cn-headline { letter-spacing: -0.03em; }
+      .cn-trust { max-width: 310px; }
     }
   `}</style>
 )
@@ -218,7 +281,7 @@ const StarField = () => {
     [15,160],[1440,320],[730,30],[350,760],[1200,480],[620,30],[90,580],[1380,470],
   ]
   return (
-    <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', pointerEvents:'none' }}>
+    <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', pointerEvents:'none', animation: 'cn-star-drift 52s linear infinite alternate' }}>
       {pts.map(([cx, cy], i) => (
         <circle key={i} cx={cx} cy={cy}
           r={i % 6 === 0 ? 1.6 : i % 4 === 0 ? 1.1 : 0.65}
@@ -237,16 +300,46 @@ const StarField = () => {
 }
 
 // ─── Planet + Orbital Rings ───────────────────────────────────────────────────
+const AmbientParticles = () => {
+  const particles = [
+    [18, 42, 18, 0.24, '7s', '0s'], [28, 64, -22, 0.18, '9s', '1.1s'],
+    [37, 32, 26, 0.22, '8s', '2.4s'], [47, 72, -18, 0.2, '10s', '0.7s'],
+    [56, 38, 30, 0.24, '8.5s', '1.8s'], [64, 68, -26, 0.17, '11s', '3.1s'],
+    [73, 44, 18, 0.2, '9.5s', '1.4s'], [82, 60, -30, 0.16, '12s', '2.2s'],
+    [23, 76, 20, 0.14, '13s', '4.3s'], [77, 28, -24, 0.2, '10.5s', '0.2s'],
+  ]
+  return (
+    <div className="cn-particles" aria-hidden="true">
+      {particles.map(([left, top, dx, op, dur, delay], i) => (
+        <span
+          key={i}
+          className="cn-particle"
+          style={{
+            left: `${left}%`,
+            top: `${top}%`,
+            '--dx': `${dx}px`,
+            '--op': op,
+            '--dur': dur,
+            '--delay': delay,
+          } as React.CSSProperties}
+        />
+      ))}
+    </div>
+  )
+}
+
 const OrbitalVisual = () => (
   <div style={{
     position: 'absolute',
-    right: 'clamp(-120px, -6vw, -60px)',
+    left: '50%',
     top: '50%',
-    transform: 'translateY(-50%)',
-    width: 'clamp(440px, 50vw, 800px)',
-    height: 'clamp(440px, 50vw, 800px)',
+    transform: 'translate(-50%, -50%)',
+    width: 'clamp(560px, 76vw, 980px)',
+    height: 'clamp(560px, 76vw, 980px)',
     pointerEvents: 'none', userSelect: 'none',
-    zIndex: 5,
+    zIndex: 8,
+    opacity: 0.72,
+    filter: 'blur(0.1px)',
   }}>
     <svg viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg"
       style={{ width:'100%', height:'100%' }}>
@@ -382,13 +475,6 @@ const Navbar = ({ onEnter }: { onEnter: () => void }) => (
       </div>
     </div>
 
-    {/* Nav links */}
-    <ul className="cn-navlinks">
-      {['Home','Features','Use Cases','Integration','Testimonial'].map(l => (
-        <li key={l}><a href="#">{l}</a></li>
-      ))}
-    </ul>
-
     {/* CTA */}
     <button className="cn-nav-cta" onClick={onEnter} type="button">
       Enter COSMO
@@ -398,7 +484,7 @@ const Navbar = ({ onEnter }: { onEnter: () => void }) => (
 
 // ─── Hero ─────────────────────────────────────────────────────────────────────
 const HeroContent = ({ onEnter }: { onEnter: () => void }) => (
-  <div className="cn-hero-content" style={{ maxWidth: 560, paddingTop: 150 }}>
+  <div className="cn-hero-content">
     {/* Badge */}
     <div className="cn-badge">
       <span className="cn-badge-dot"/>
@@ -414,7 +500,7 @@ const HeroContent = ({ onEnter }: { onEnter: () => void }) => (
     {/* Subheadline */}
     <p className="cn-sub">
       COSMO is an AI-powered ERP that unifies finance, inventory, and operations
-      into one intelligent system — real-time decisions, ledger always balanced.
+      into one intelligent system — powered by Anthropic Claude.
     </p>
 
     {/* CTAs */}
@@ -422,7 +508,7 @@ const HeroContent = ({ onEnter }: { onEnter: () => void }) => (
       <button className="cn-cta-primary" type="button" onClick={onEnter}>
         Enter COSMO →
       </button>
-      <button className="cn-cta-secondary" type="button">
+      <button className="cn-cta-secondary" type="button" onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>
         Explore Features
       </button>
     </div>
@@ -534,7 +620,7 @@ export default function Login() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div style={{
-      position: 'relative', minHeight: '100vh', overflow: 'hidden',
+      position: 'relative', overflow: 'hidden',
       background: '#020510', fontFamily: "'Sora', sans-serif",
     }}>
       <GlobalStyles />
@@ -544,6 +630,9 @@ export default function Login() {
         position: 'absolute', inset: 0, pointerEvents: 'none',
         background: 'radial-gradient(ellipse 92% 78% at 62% 58%, #071234 0%, #040c24 38%, #020510 75%, #010208 100%)',
       }}/>
+
+      <div className="cn-ambient-gradient" />
+      <div className="cn-grid-noise" />
 
       {/* Blue rim glow at bottom-center — mimics earth limb glow */}
       <div style={{
@@ -564,6 +653,8 @@ export default function Login() {
         <StarField />
       </div>
 
+      <AmbientParticles />
+
       {/* Orbital planet */}
       <OrbitalVisual />
 
@@ -571,14 +662,16 @@ export default function Login() {
       <Navbar onEnter={() => setShowLogin(true)} />
 
       {/* Hero content */}
-      <div style={{
-        position: 'relative', zIndex: 10,
-        minHeight: '100vh',
-        display: 'flex', alignItems: 'center',
-        paddingLeft: 'clamp(28px, 8vw, 118px)',
-      }}>
+      <div className="cn-hero-shell">
         <HeroContent onEnter={() => setShowLogin(true)} />
       </div>
+
+      {/* ── Scroll storytelling sections (visual only — zero logic) ── */}
+      <MetricsStrip />
+      <ProductWalkthrough />
+      <AISection />
+      <FeaturesGrid />
+      <CTAFooter onEnter={() => setShowLogin(true)} />
 
       {/* ── Login Modal — backdrop + card ── */}
       {showLogin && (

@@ -23,11 +23,11 @@ import {
 
 // ── Page meta ──────────────────────────────────────────────────
 const PAGE_META = {
-  "/inventory":              { title: "Inventory",        icon: Boxes,         section: "products"     },
-  "/inventory/products":     { title: "Products",         icon: Package,       section: "products"     },
-  "/inventory/movement":     { title: "Stock Movement",   icon: PlusCircle,    section: "movement"     },
-  "/inventory/transactions": { title: "Transaction Log",  icon: ClipboardList, section: "transactions" },
-  "/inventory/alerts":       { title: "Low Stock Alerts", icon: Bell,     section: "alerts"       },
+  "/inventory": { title: "Inventory", icon: Boxes, section: "products" },
+  "/inventory/products": { title: "Products", icon: Package, section: "products" },
+  "/inventory/movement": { title: "Stock Movement", icon: PlusCircle, section: "movement" },
+  "/inventory/transactions": { title: "Transaction Log", icon: ClipboardList, section: "transactions" },
+  "/inventory/alerts": { title: "Low Stock Alerts", icon: Bell, section: "alerts" },
 } as const;
 
 const CATEGORY_OPTIONS: { label: string; value: ItemCategory }[] = [
@@ -38,11 +38,11 @@ const CATEGORY_OPTIONS: { label: string; value: ItemCategory }[] = [
 ];
 
 const TX_TYPES: { value: TransactionType; label: string; dir: "in" | "out"; color: string }[] = [
-  { value: "purchase_in",    label: "Purchase / In",    dir: "in",  color: "text-green-400"   },
-  { value: "return_in",      label: "Return / In",      dir: "in",  color: "text-emerald-400" },
-  { value: "production_out", label: "Production / Out", dir: "out", color: "text-amber-500"   },
-  { value: "sales_out",      label: "Sales / Out",      dir: "out", color: "text-red-400"     },
-  { value: "adjustment",     label: "Adjustment",       dir: "in",  color: "text-blue-400"    },
+  { value: "purchase_in", label: "Purchase / In", dir: "in", color: "text-green-400" },
+  { value: "return_in", label: "Return / In", dir: "in", color: "text-emerald-400" },
+  { value: "production_out", label: "Production / Out", dir: "out", color: "text-amber-500" },
+  { value: "sales_out", label: "Sales / Out", dir: "out", color: "text-red-400" },
+  { value: "adjustment", label: "Adjustment", dir: "in", color: "text-blue-400" },
 ];
 const txDir = (t: TransactionType) => TX_TYPES.find(x => x.value === t)?.dir ?? "in";
 const txColor = (t: TransactionType) => TX_TYPES.find(x => x.value === t)?.color ?? "";
@@ -51,7 +51,7 @@ const getCategoryLabel = (category: ItemCategory) =>
 const getTransactionLabel = (type: TransactionType) =>
   TX_TYPES.find(option => option.value === type)?.label ?? type;
 
-const fmtQty  = (n: number, unit = "") => `${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}${unit ? " " + unit : ""}`;
+const fmtQty = (n: number, unit = "") => `${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}${unit ? " " + unit : ""}`;
 const fmtRate = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const todayStr = () => new Date().toISOString().split("T")[0];
 
@@ -110,10 +110,10 @@ const Btn = ({ onClick, disabled = false, variant = "primary", size = "md", chil
   const vr = variant === "primary"
     ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white hover:from-blue-500 hover:to-violet-500 shadow-lg shadow-blue-900/30 hover:shadow-blue-900/50 hover:-translate-y-px"
     : variant === "danger"
-    ? "bg-red-600/80 text-white hover:bg-red-500/90 border border-red-500/30 hover:-translate-y-px"
-    : variant === "outline"
-    ? "border border-border bg-transparent hover:bg-muted/40 hover:border-primary/30 text-foreground"
-    : "hover:bg-white/5 text-foreground";
+      ? "bg-red-600/80 text-white hover:bg-red-500/90 border border-red-500/30 hover:-translate-y-px"
+      : variant === "outline"
+        ? "border border-border bg-transparent hover:bg-muted/40 hover:border-primary/30 text-foreground"
+        : "hover:bg-white/5 text-foreground";
   return (
     <button onClick={onClick} disabled={disabled}
       className={`inline-flex items-center justify-center gap-1.5 font-medium rounded-lg transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed ${sz} ${vr} ${className}`}>
@@ -146,7 +146,7 @@ const StockBar = ({ current, reorder, max }: { current: number; reorder: number;
   const isOut = current === 0;
   const isLow = !isOut && current <= reorder;
   const color = isOut ? "from-red-600 to-red-500" : isLow ? "from-amber-500 to-amber-400" : "from-emerald-600 to-green-400";
-  const glow  = isOut ? "shadow-red-500/40"        : isLow ? "shadow-amber-400/30"        : "shadow-green-500/20";
+  const glow = isOut ? "shadow-red-500/40" : isLow ? "shadow-amber-400/30" : "shadow-green-500/20";
 
   return (
     <div className="h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
@@ -162,8 +162,8 @@ const StockBar = ({ current, reorder, max }: { current: number; reorder: number;
 const StatusPill = ({ status }: { status: "out" | "low" | "ok" }) => {
   const cfg = {
     out: { label: "Out of Stock", cls: "bg-red-950/60 text-red-400 border-red-500/30 shadow-red-500/20" },
-    low: { label: "Low Stock",    cls: "bg-amber-950/60 text-amber-400 border-amber-500/30 shadow-amber-500/20" },
-    ok:  { label: "In Stock",     cls: "bg-emerald-950/60 text-emerald-400 border-emerald-500/30 shadow-emerald-500/10" },
+    low: { label: "Low Stock", cls: "bg-amber-950/60 text-amber-400 border-amber-500/30 shadow-amber-500/20" },
+    ok: { label: "In Stock", cls: "bg-emerald-950/60 text-emerald-400 border-emerald-500/30 shadow-emerald-500/10" },
   }[status];
   return (
     <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full border shadow-sm ${cfg.cls}`}>
@@ -282,14 +282,14 @@ const ProductModal = ({ initial, onSave, onClose }: {
 // TAB 1 — PRODUCTS
 // ══════════════════════════════════════════════════════════════
 const ProductsTab = () => {
-  const [items, setItems]       = useState<InventoryItem[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
-  const [search, setSearch]     = useState("");
-  const [catFilter, setCat]     = useState<"all" | ItemCategory>("all");
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [catFilter, setCat] = useState<"all" | ItemCategory>("all");
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [modal, setModal]       = useState<"add" | InventoryItem | null>(null);
-  const { toast, show, clear }  = useToast();
+  const [modal, setModal] = useState<"add" | InventoryItem | null>(null);
+  const { toast, show, clear } = useToast();
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -341,8 +341,8 @@ const ProductsTab = () => {
   };
 
   const statusOf = (i: InventoryItem): "out" | "low" | "ok" =>
-    i.current_stock === 0                         ? "out" :
-    i.current_stock <= i.minimum_reorder_level    ? "low" : "ok";
+    i.current_stock === 0 ? "out" :
+      i.current_stock <= i.minimum_reorder_level ? "low" : "ok";
 
   const lowCount = items.filter(i => i.current_stock <= i.minimum_reorder_level).length;
   const maxStock = items.length > 0 ? Math.max(...items.map(i => i.current_stock)) : 1;
@@ -359,7 +359,7 @@ const ProductsTab = () => {
           color="text-emerald-400" icon={Check} glow="emerald" />
         <KpiCard label="Low / Out of Stock" value={lowCount}
           color={lowCount > 0 ? "text-red-400" : "text-emerald-400"} icon={AlertTriangle} glow={lowCount > 0 ? "red" : "emerald"} />
-        <KpiCard label="Total Value" value={fmtRate(items.reduce((s,i) => s + i.current_stock * (i.buy_rate ?? 0), 0))}
+        <KpiCard label="Total Value" value={fmtRate(items.reduce((s, i) => s + i.current_stock * (i.buy_rate ?? 0), 0))}
           icon={Boxes} />
       </div>
 
@@ -409,7 +409,7 @@ const ProductsTab = () => {
           ) : (
             <div className="space-y-2">
               {filtered.map(item => {
-                const st   = statusOf(item);
+                const st = statusOf(item);
                 const isEx = expanded === item.id;
                 const accentColor = st === "out" ? "bg-red-500" : st === "low" ? "bg-amber-500" : "bg-emerald-500";
                 const borderColor = st === "out" ? "hover:border-red-500/30" : st === "low" ? "hover:border-amber-500/30" : "hover:border-emerald-500/20";
@@ -508,17 +508,17 @@ const ProductsTab = () => {
 // TAB 2 — STOCK MOVEMENT
 // ══════════════════════════════════════════════════════════════
 const MovementTab = () => {
-  const [items, setItems]      = useState<InventoryItem[]>([]);
-  const [loadingItems, setLI]  = useState(true);
-  const [txType, setTxType]    = useState<TransactionType>("purchase_in");
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [loadingItems, setLI] = useState(true);
+  const [txType, setTxType] = useState<TransactionType>("purchase_in");
   const [selectedId, setSelId] = useState("");
-  const [qty, setQty]          = useState("");
-  const [date, setDate]        = useState(todayStr());
-  const [reference, setRef]    = useState("");
-  const [notes, setNotes]      = useState("");
-  const [submitting, setSub]   = useState(false);
-  const [recentTxns, setRec]   = useState<InventoryTransaction[]>([]);
-  const [loadingRec, setLR]    = useState(true);
+  const [qty, setQty] = useState("");
+  const [date, setDate] = useState(todayStr());
+  const [reference, setRef] = useState("");
+  const [notes, setNotes] = useState("");
+  const [submitting, setSub] = useState(false);
+  const [recentTxns, setRec] = useState<InventoryTransaction[]>([]);
+  const [loadingRec, setLR] = useState(true);
   const { toast, show, clear } = useToast();
 
   const loadItems = useCallback(async () => {
@@ -542,12 +542,12 @@ const MovementTab = () => {
   useEffect(() => { loadItems(); loadRecent(); }, [loadItems, loadRecent]);
 
   const selectedItem = items.find(i => i.id === selectedId);
-  const qtyNum       = parseFloat(qty) || 0;
-  const isIn         = txDir(txType) === "in";
+  const qtyNum = parseFloat(qty) || 0;
+  const isIn = txDir(txType) === "in";
 
   const previewStock = selectedItem && qtyNum > 0
     ? isIn ? selectedItem.current_stock + qtyNum
-           : Math.max(0, selectedItem.current_stock - qtyNum)
+      : Math.max(0, selectedItem.current_stock - qtyNum)
     : null;
 
   const handleSubmit = async () => {
@@ -557,12 +557,12 @@ const MovementTab = () => {
     setSub(true);
 
     const result = await postTransaction({
-      item_id:          selectedId,
+      item_id: selectedId,
       transaction_type: txType,
       quantity_changed: qtyNum,
       transaction_date: date,
       reference_number: reference || undefined,
-      currentStock:     selectedItem.current_stock,
+      currentStock: selectedItem.current_stock,
     });
 
     if (!result.success) {
@@ -577,7 +577,7 @@ const MovementTab = () => {
     setSub(false);
   };
 
-  const inTypes  = TX_TYPES.filter(t => t.dir === "in");
+  const inTypes = TX_TYPES.filter(t => t.dir === "in");
   const outTypes = TX_TYPES.filter(t => t.dir === "out");
 
   return (
@@ -727,7 +727,7 @@ const MovementTab = () => {
               No movements yet
             </div>
           ) : recentTxns.map(t => {
-            const dir  = txDir(t.transaction_type);
+            const dir = txDir(t.transaction_type);
             const isIn = dir === "in";
             const unit = t.inventory_items?.unit_of_measure ?? "";
             const rate = t.inventory_items?.buy_rate ?? 0;
@@ -754,7 +754,7 @@ const MovementTab = () => {
                           {getTransactionLabel(t.transaction_type)}
                         </span>
                         <span className="mx-1.5">·</span>
-                        {new Date(t.transaction_date ?? t.created_at).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" })}
+                        {new Date(t.transaction_date ?? t.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                         {t.reference_number && <span className="ml-1.5 font-mono text-muted-foreground/60">· {t.reference_number}</span>}
                       </p>
                     </div>
@@ -779,13 +779,13 @@ const MovementTab = () => {
 // TAB 3 — TRANSACTION LOG
 // ══════════════════════════════════════════════════════════════
 const TransactionLogTab = () => {
-  const [rows, setRows]         = useState<InventoryTransaction[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
-  const [typeFilter, setType]   = useState("all");
-  const [search, setSearch]     = useState("");
+  const [rows, setRows] = useState<InventoryTransaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [typeFilter, setType] = useState("all");
+  const [search, setSearch] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
-  const { toast, show, clear }  = useToast();
+  const { toast, show, clear } = useToast();
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -806,8 +806,8 @@ const TransactionLogTab = () => {
     setDeleting(t.id);
     const currentStock = (t.inventory_items as any)?.current_stock ?? 0;
     const result = await reverseTransaction({
-      transactionId:    t.id,
-      item_id:          t.item_id,
+      transactionId: t.id,
+      item_id: t.item_id,
       transaction_type: t.transaction_type,
       quantity_changed: t.quantity_changed,
       currentStock,
@@ -826,12 +826,12 @@ const TransactionLogTab = () => {
     if (typeFilter !== "all" && t.transaction_type !== typeFilter) return false;
     const name = t.inventory_items?.item_name ?? "";
     if (search && !name.toLowerCase().includes(search.toLowerCase())
-               && !(t.reference_number ?? "").toLowerCase().includes(search.toLowerCase())) return false;
+      && !(t.reference_number ?? "").toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   }), [rows, typeFilter, search]);
 
-  const totalIn  = filtered.filter(t => txDir(t.transaction_type) === "in").reduce((s,t) => s + t.quantity_changed, 0);
-  const totalOut = filtered.filter(t => txDir(t.transaction_type) === "out").reduce((s,t) => s + t.quantity_changed, 0);
+  const totalIn = filtered.filter(t => txDir(t.transaction_type) === "in").reduce((s, t) => s + t.quantity_changed, 0);
+  const totalOut = filtered.filter(t => txDir(t.transaction_type) === "out").reduce((s, t) => s + t.quantity_changed, 0);
 
   return (
     <div className="space-y-5">
@@ -890,10 +890,10 @@ const TransactionLogTab = () => {
                 {filtered.length === 0
                   ? <tr><td colSpan={7} className="py-12 text-center text-muted-foreground text-sm">No transactions found</td></tr>
                   : filtered.map((t, idx) => {
-                    const dir      = txDir(t.transaction_type);
-                    const isIn     = dir === "in";
-                    const unit     = t.inventory_items?.unit_of_measure ?? "";
-                    const rate     = t.inventory_items?.buy_rate ?? 0;
+                    const dir = txDir(t.transaction_type);
+                    const isIn = dir === "in";
+                    const unit = t.inventory_items?.unit_of_measure ?? "";
+                    const rate = t.inventory_items?.buy_rate ?? 0;
                     const isDeleting = deleting === t.id;
                     return (
                       <tr key={t.id}
@@ -901,7 +901,7 @@ const TransactionLogTab = () => {
                           ${isDeleting ? "opacity-40" : "hover:bg-gradient-to-r hover:from-white/[0.02] hover:to-transparent"}
                           ${idx % 2 === 0 ? "" : "bg-white/[0.008]"}`}>
                         <td className="px-5 py-3.5 text-xs text-muted-foreground whitespace-nowrap">
-                          {new Date(t.transaction_date ?? t.created_at).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" })}
+                          {new Date(t.transaction_date ?? t.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                         </td>
                         <td className="px-5 py-3.5">
                           <p className="font-medium text-sm">{t.inventory_items?.item_name ?? `#${t.item_id}`}</p>
@@ -953,9 +953,9 @@ const TransactionLogTab = () => {
 // TAB 4 — LOW STOCK ALERTS
 // ══════════════════════════════════════════════════════════════
 const AlertsTab = () => {
-  const [items, setItems]     = useState<InventoryItem[]>([]);
+  const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -970,8 +970,8 @@ const AlertsTab = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  const out     = items.filter(i => i.current_stock === 0);
-  const low     = items.filter(i => i.current_stock > 0 && i.current_stock <= i.minimum_reorder_level);
+  const out = items.filter(i => i.current_stock === 0);
+  const low = items.filter(i => i.current_stock > 0 && i.current_stock <= i.minimum_reorder_level);
   const healthy = items.filter(i => i.current_stock > i.minimum_reorder_level);
 
   return (
@@ -1098,26 +1098,25 @@ const AlertsTab = () => {
 type Section = "products" | "movement" | "transactions" | "alerts";
 
 const TABS: { section: Section; label: string; icon: React.ElementType }[] = [
-  { section: "products",     label: "Products",        icon: Package       },
-  { section: "movement",     label: "Stock Movement",  icon: PlusCircle    },
+  { section: "products", label: "Products", icon: Package },
+  { section: "movement", label: "Stock Movement", icon: PlusCircle },
   { section: "transactions", label: "Transaction Log", icon: ClipboardList },
-  { section: "alerts",       label: "Low Stock Alerts",icon: Bell          },
+  { section: "alerts", label: "Low Stock Alerts", icon: Bell },
 ];
+
+const sectionFromPathname = (pathname: string): Section => {
+  if (pathname.includes("movement")) return "movement";
+  if (pathname.includes("transactions")) return "transactions";
+  if (pathname.includes("alerts")) return "alerts";
+  return "products";
+};
 
 const Inventory = () => {
   const { pathname } = useLocation();
-
-  const getInitialTab = (): Section => {
-    if (pathname.includes("movement"))     return "movement";
-    if (pathname.includes("transactions")) return "transactions";
-    if (pathname.includes("alerts"))       return "alerts";
-    return "products";
-  };
-
-  const [section, setSection] = useState<Section>(getInitialTab);
+  const [section, setSection] = useState<Section>(() => sectionFromPathname(pathname));
 
   useEffect(() => {
-    setSection(getInitialTab());
+    setSection(sectionFromPathname(pathname));
   }, [pathname]);
 
   const activeTab = TABS.find(t => t.section === section)!;
@@ -1139,10 +1138,10 @@ const Inventory = () => {
       </div>
 
       {/* All tabs stay permanently mounted — switching is instant, no refetch */}
-      <div className={section === "products"     ? "" : "hidden"}><ProductsTab /></div>
-      <div className={section === "movement"     ? "" : "hidden"}><MovementTab /></div>
+      <div className={section === "products" ? "" : "hidden"}><ProductsTab /></div>
+      <div className={section === "movement" ? "" : "hidden"}><MovementTab /></div>
       <div className={section === "transactions" ? "" : "hidden"}><TransactionLogTab /></div>
-      <div className={section === "alerts"       ? "" : "hidden"}><AlertsTab /></div>
+      <div className={section === "alerts" ? "" : "hidden"}><AlertsTab /></div>
     </div>
   );
 };
