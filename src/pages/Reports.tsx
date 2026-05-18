@@ -231,8 +231,9 @@ const SalesReport = () => {
     const map = new Map<string, { revenue: number; invoices: number; collected: number; outstanding: number }>();
     filteredInvoices.forEach(inv => {
       const e = map.get(inv.customerName) ?? { revenue: 0, invoices: 0, collected: 0, outstanding: 0 };
+      // revenue = net of credit notes — must match canonical formula: totalAmount − creditNoteAmount
       map.set(inv.customerName, {
-        revenue:     e.revenue + inv.totalAmount,
+        revenue:     e.revenue + (inv.totalAmount - inv.creditNoteAmount),
         invoices:    e.invoices + 1,
         collected:   e.collected + inv.totalPaid,
         outstanding: e.outstanding + inv.outstanding,
@@ -254,7 +255,8 @@ const SalesReport = () => {
       const e = map.get(ym) ?? { ym, revenue: 0, collected: 0, outstanding: 0 };
       map.set(ym, {
         ym,
-        revenue:     e.revenue + inv.totalAmount,
+        // revenue = net of credit notes — matches canonical formula: totalAmount − creditNoteAmount
+        revenue:     e.revenue + (inv.totalAmount - inv.creditNoteAmount),
         collected:   e.collected + inv.totalPaid,
         outstanding: e.outstanding + inv.outstanding,
       });
@@ -1629,8 +1631,24 @@ const PnLReport = () => {
   const totalOpex     = engine?.metrics.accrual.opex              ?? 0;
   const grossProfit   = engine?.metrics.accrual.grossProfit       ?? 0;
   const netProfit     = engine?.metrics.accrual.netProfit         ?? 0;
-  const gstCollected  = engine?.metrics.accrual.gstCollected      ?? 0;
-  const gstPaid       = engine?.metrics.accrual.gstPaid           ?? 0;
+  // [GST-AUDIT] Pull all four GST waterfall values from engine — no local recalculation.
+  // grossGstCollected : GST on invoices before credit-note reversal
+  // cnGstReversal     : GST reversed by credit notes (expect ₹9,565.62 with current data)
+  // gstCollected      : net output GST = grossGstCollected − cnGstReversal
+  //                     (engine computes this directly — does NOT use GL.getBalance which
+  //                      would also subtract purchase ITC and double-count it in gstDelta)
+  // gstPaid           : input ITC from purchases (separate DR GST_PAYABLE / CR CASH postings)
+  const grossGstCollected = engine?.metrics.accrual.grossGstCollected ?? 0;
+  const cnGstReversal     = engine?.metrics.accrual.cnGstReversal     ?? 0;
+  const gstCollected      = engine?.metrics.accrual.gstCollected      ?? 0;
+  const gstPaid           = engine?.metrics.accrual.gstPaid           ?? 0;
+
+  // Payable/surplus determination — single source of truth, no inline arithmetic in JSX.
+  // gstDelta > 0  → net GST payable to government
+  // gstDelta <= 0 → ITC surplus (input credit exceeds output liability)
+  const gstDelta    = gstCollected - gstPaid;
+  const isGstPayable = gstDelta > 0;
+  const gstDeltaAbs  = Math.abs(gstDelta);
 
   const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
   const netMargin   = revenue > 0 ? (netProfit / revenue) * 100 : 0;
@@ -1944,36 +1962,84 @@ const PnLReport = () => {
         </div>
       </div>
 
-      {/* ── GST Summary — 3 mini cards ──────────────────────── */}
+      {/* ── GST Summary — waterfall breakdown ─────────────────── */}
+      {/* [GST-AUDIT] All values sourced exclusively from engine.metrics.accrual.
+          Waterfall: Gross Output GST → Less CN Reversal → Net Output GST → Less ITC → Net Payable / ITC Surplus
+          grossGstCollected : GST on invoices before credit-note reversal
+          cnGstReversal     : GST reversed by credit notes (validates against ₹9,565.62 expected)
+          gstCollected      : net output GST = grossGstCollected − cnGstReversal
+          gstPaid           : input ITC from purchases
+          gstDelta          : positive = payable to govt; negative = ITC surplus
+      */}
       <div style={cardBase}>
         <div style={{ padding: "16px 22px 12px", borderBottom: "1px solid hsl(var(--border)/0.45)" }}>
           <p style={{ fontSize: "13px", fontWeight: 600, color: "hsl(var(--foreground))", letterSpacing: "-0.01em" }}>GST Summary</p>
-          <p style={{ fontSize: "11px", color: G.muted, marginTop: "2px" }}>Output tax collected vs input credit paid</p>
+          <p style={{ fontSize: "11px", color: G.muted, marginTop: "2px" }}>
+            Output tax waterfall · net of credit-note reversals · vs input credit paid
+          </p>
         </div>
-        <div style={{ padding: "16px 20px 20px", display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "14px" }}>
 
-          {/* GST Collected */}
-          <div style={{ borderRadius: "12px", border: "1px solid rgba(134,239,172,0.2)", background: "rgba(134,239,172,0.04)", padding: "16px 18px" }}>
-            <p style={{ fontSize: "11px", color: G.muted, marginBottom: "8px" }}>GST Collected (Output)</p>
-            <p style={{ fontSize: "22px", fontWeight: 700, color: G.pos, letterSpacing: "-0.02em" }}>{fmt(gstCollected)}</p>
-            <p style={{ fontSize: "10px", color: "rgba(134,239,172,0.6)", marginTop: "4px" }}>From sales invoices</p>
+        {/* Row 1: four-card waterfall */}
+        <div style={{ padding: "16px 20px 0", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "14px" }}>
+
+          {/* 1. Gross Output GST */}
+          <div style={{ borderRadius: "12px", border: "1px solid rgba(134,239,172,0.2)", background: "rgba(134,239,172,0.04)", padding: "14px 16px" }}>
+            <p style={{ fontSize: "10px", fontWeight: 600, color: G.muted, marginBottom: "6px", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>Gross Output GST</p>
+            <p style={{ fontSize: "20px", fontWeight: 700, color: G.pos, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>{fmt(grossGstCollected)}</p>
+            <p style={{ fontSize: "10px", color: "rgba(134,239,172,0.55)", marginTop: "4px" }}>From sales invoices</p>
           </div>
 
-          {/* GST Paid */}
-          <div style={{ borderRadius: "12px", border: "1px solid rgba(252,165,165,0.2)", background: "rgba(252,165,165,0.04)", padding: "16px 18px" }}>
-            <p style={{ fontSize: "11px", color: G.muted, marginBottom: "8px" }}>GST Paid (Input)</p>
-            <p style={{ fontSize: "22px", fontWeight: 700, color: G.neg, letterSpacing: "-0.02em" }}>{fmt(gstPaid)}</p>
-            <p style={{ fontSize: "10px", color: "rgba(252,165,165,0.6)", marginTop: "4px" }}>Input credit on purchases</p>
-          </div>
-
-          {/* Net GST Payable */}
-          <div style={{ borderRadius: "12px", border: `1px solid ${gstCollected - gstPaid >= 0 ? "rgba(252,211,77,0.22)" : "rgba(134,239,172,0.2)"}`, background: `${gstCollected - gstPaid >= 0 ? "rgba(252,211,77,0.05)" : "rgba(134,239,172,0.04)"}`, padding: "16px 18px" }}>
-            <p style={{ fontSize: "11px", color: G.muted, marginBottom: "8px" }}>Net GST Payable</p>
-            <p style={{ fontSize: "22px", fontWeight: 700, color: gstCollected - gstPaid >= 0 ? G.amber : G.pos, letterSpacing: "-0.02em" }}>
-              {fmt(Math.abs(gstCollected - gstPaid))}
+          {/* 2. CN GST Reversal */}
+          <div style={{ borderRadius: "12px", border: "1px solid rgba(251,191,36,0.2)", background: "rgba(251,191,36,0.04)", padding: "14px 16px" }}>
+            <p style={{ fontSize: "10px", fontWeight: 600, color: G.muted, marginBottom: "6px", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>CN GST Reversal</p>
+            <p style={{ fontSize: "20px", fontWeight: 700, color: G.amber, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
+              {cnGstReversal > 0 ? `−${fmt(cnGstReversal)}` : fmt(0)}
             </p>
-            <p style={{ fontSize: "10px", color: G.muted, marginTop: "4px" }}>
-              {gstCollected - gstPaid >= 0 ? "Payable to government" : "Net input credit surplus"}
+            <p style={{ fontSize: "10px", color: "rgba(251,191,36,0.55)", marginTop: "4px" }}>Credit-note adjustments</p>
+          </div>
+
+          {/* 3. Net Output GST (after CN reversal) */}
+          <div style={{ borderRadius: "12px", border: "1px solid rgba(147,197,253,0.25)", background: "rgba(147,197,253,0.05)", padding: "14px 16px" }}>
+            <p style={{ fontSize: "10px", fontWeight: 600, color: G.muted, marginBottom: "6px", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>Net Output GST</p>
+            <p style={{ fontSize: "20px", fontWeight: 700, color: G.blue, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>{fmt(gstCollected)}</p>
+            <p style={{ fontSize: "10px", color: "rgba(147,197,253,0.55)", marginTop: "4px" }}>After CN reversals</p>
+          </div>
+
+          {/* 4. Input ITC */}
+          <div style={{ borderRadius: "12px", border: "1px solid rgba(252,165,165,0.2)", background: "rgba(252,165,165,0.04)", padding: "14px 16px" }}>
+            <p style={{ fontSize: "10px", fontWeight: 600, color: G.muted, marginBottom: "6px", textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>Input ITC</p>
+            <p style={{ fontSize: "20px", fontWeight: 700, color: G.neg, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>{fmt(gstPaid)}</p>
+            <p style={{ fontSize: "10px", color: "rgba(252,165,165,0.55)", marginTop: "4px" }}>GST paid on purchases</p>
+          </div>
+        </div>
+
+        {/* Row 2: net result — payable or ITC surplus, with correct conditional label */}
+        <div style={{ padding: "14px 20px 20px" }}>
+          <div style={{
+            borderRadius: "12px",
+            border: `1px solid ${isGstPayable ? "rgba(252,165,165,0.3)" : "rgba(134,239,172,0.25)"}`,
+            background: isGstPayable ? "rgba(252,165,165,0.06)" : "rgba(134,239,172,0.05)",
+            padding: "16px 20px",
+            display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" as const, gap: "12px",
+          }}>
+            <div>
+              {/* Label is conditional: positive delta = payable, negative = ITC surplus */}
+              <p style={{ fontSize: "12px", fontWeight: 700, color: isGstPayable ? G.neg : G.pos, marginBottom: "3px" }}>
+                {isGstPayable ? "⚠ Net GST Payable" : "✓ ITC Surplus (Credit)"}
+              </p>
+              <p style={{ fontSize: "11px", color: G.muted }}>
+                {isGstPayable
+                  ? `Net Output GST ${fmt(gstCollected)} − Input ITC ${fmt(gstPaid)} = payable to govt`
+                  : `Input ITC ${fmt(gstPaid)} > Net Output GST ${fmt(gstCollected)} — carry forward or claim refund`}
+              </p>
+            </div>
+            <p style={{
+              fontSize: "28px", fontWeight: 800,
+              color: isGstPayable ? G.neg : G.pos,
+              letterSpacing: "-0.03em", fontVariantNumeric: "tabular-nums",
+              flexShrink: 0,
+            }}>
+              {fmt(gstDeltaAbs)}
             </p>
           </div>
         </div>

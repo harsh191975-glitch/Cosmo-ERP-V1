@@ -4,10 +4,9 @@
 // and the engine can import types without pulling in the DB client.
 
 export type ItemCategory =
-  | "raw_material"
-  | "finished_good"
-  | "packaging"
-  | "other";
+  | "Raw Material"
+  | "Finished Good"
+  | "Packaging";
 
 export type TransactionType =
   | "purchase_in"

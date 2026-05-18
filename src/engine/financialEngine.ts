@@ -93,9 +93,9 @@ const PaymentSchema = BaseRecord.extend({
 const CreditNoteSchema = BaseRecord.extend({
     credit_note_number: z.string(),
     invoice_no: z.string(),
-    credit_note_date: z.string(),
+    credit_note_date: z.string(),   // normalized from store's `date` field
     taxable_amount: z.number().nonnegative(),
-    amount: z.number().nonnegative(),
+    amount: z.number().nonnegative(), // normalized from store's `totalAmount` field
 });
 
 const PurchaseSchema = BaseRecord.extend({
@@ -502,8 +502,21 @@ export async function runEnterpriseEngine(
     }
 
     // ── INGEST CREDIT NOTES ──
+    // [FIX-CN] creditNoteStore returns camelCase — normalize at the boundary before parsing.
+    // CreditNote domain object: { creditNoteNumber, invoiceNo, date, taxableAmount, totalAmount, ... }
+    // CreditNoteSchema expects:  { credit_note_number, invoice_no, credit_note_date, taxable_amount, amount }
+    // Without this shim, credit_note_date and amount are undefined → safeParse fails → all credit notes
+    // are silently skipped → outstanding, revenue, and GST are all overstated.
     for (const raw of rawCns) {
-        const parsed = CreditNoteSchema.safeParse(raw);
+        const normalized = {
+            id:                 (raw as any).id,
+            credit_note_number: (raw as any).creditNoteNumber ?? (raw as any).credit_note_number,
+            invoice_no:         (raw as any).invoiceNo        ?? (raw as any).invoice_no,
+            credit_note_date:   (raw as any).date             ?? (raw as any).credit_note_date,
+            taxable_amount:     (raw as any).taxableAmount     ?? (raw as any).taxable_amount     ?? 0,
+            amount:             (raw as any).totalAmount       ?? (raw as any).amount             ?? 0,
+        };
+        const parsed = CreditNoteSchema.safeParse(normalized);
         if (!parsed.success) {
             audit.record("CRITICAL", "CN_SCHEMA", (raw as any).credit_note_number || "N/A", 0, "Invalid schema", raw);
             continue;
@@ -749,21 +762,58 @@ export async function runEnterpriseEngine(
                         return total;
                     })()
                 ),
-                gstCollected: toCurrency(GL.getBalance("GST_PAYABLE", targetPeriod, "period")),
-                gstPaid: toCurrency(
-                    (() => {
-                        // GST paid to suppliers = sum of GST_PAYABLE debits from purchase entries
-                        // These are the entries posted as: DR GST_PAYABLE / CR CASH for purchase GST
-                        let gstPaidTotal = 0;
-                        for (const je of GL.entries) {
-                            if (!isPeriod(je.period, targetPeriod, periodSet)) continue;
-                            if (je.drAccount === "GST_PAYABLE" && je.crAccount === "CASH") {
-                                gstPaidTotal += je.amount;
-                            }
-                        }
-                        return gstPaidTotal;
-                    })()
-                ),
+                // [GST-AUDIT] Four-way GST waterfall — all values computed from individual
+                // journal entry patterns so each number is independently verifiable:
+                //
+                //   grossGstCollected = ΣCR GST_PAYABLE where DR=AR    (invoice postings only)
+                //   cnGstReversal     = ΣDR GST_PAYABLE where CR=AR    (CN reversal postings only)
+                //   gstCollected      = grossGstCollected − cnGstReversal  (net output GST)
+                //                       ← must NOT use GL.getBalance here because that account balance also
+                //                         absorbs purchase ITC debits (DR GST_PAYABLE / CR CASH), making
+                //                         GL.getBalance = grossGstCollected − cnGstReversal − gstPaid,
+                //                         which is the net payable delta — not the output-only figure.
+                //   gstPaid           = ΣDR GST_PAYABLE where CR=CASH  (purchase ITC postings only)
+                //   gstDelta          = gstCollected − gstPaid
+                //                     = grossGstCollected − cnGstReversal − gstPaid
+                //                     = GL.getBalance("GST_PAYABLE", period, "period")  ← satisfies as a proof
+                grossGstCollected: toCurrency((() => {
+                    let total = 0;
+                    for (const je of GL.entries) {
+                        if (!isPeriod(je.period, targetPeriod, periodSet)) continue;
+                        // Invoice GST posting: DR AR / CR GST_PAYABLE
+                        if (je.crAccount === "GST_PAYABLE" && je.drAccount === "AR") total += je.amount;
+                    }
+                    return total;
+                })()),
+                cnGstReversal: toCurrency((() => {
+                    let total = 0;
+                    for (const je of GL.entries) {
+                        if (!isPeriod(je.period, targetPeriod, periodSet)) continue;
+                        // CN GST reversal posting: DR GST_PAYABLE / CR AR
+                        if (je.drAccount === "GST_PAYABLE" && je.crAccount === "AR") total += je.amount;
+                    }
+                    return total;
+                })()),
+                // gstCollected = net output GST after credit-note reversals only.
+                // Computed as grossGstCollected − cnGstReversal, NOT from GL.getBalance (see note above).
+                gstCollected: toCurrency((() => {
+                    let gross = 0, cnRev = 0;
+                    for (const je of GL.entries) {
+                        if (!isPeriod(je.period, targetPeriod, periodSet)) continue;
+                        if (je.crAccount === "GST_PAYABLE" && je.drAccount === "AR") gross += je.amount;
+                        if (je.drAccount === "GST_PAYABLE" && je.crAccount === "AR") cnRev += je.amount;
+                    }
+                    return gross - cnRev;
+                })()),
+                gstPaid: toCurrency((() => {
+                    // Input ITC from purchases: DR GST_PAYABLE / CR CASH
+                    let gstPaidTotal = 0;
+                    for (const je of GL.entries) {
+                        if (!isPeriod(je.period, targetPeriod, periodSet)) continue;
+                        if (je.drAccount === "GST_PAYABLE" && je.crAccount === "CASH") gstPaidTotal += je.amount;
+                    }
+                    return gstPaidTotal;
+                })()),
                 // Per-category OPEX breakdown — eliminates need for expense store re-aggregation in UI
                 opexByCategory: (() => {
                     const catMap: Record<string, number> = {};

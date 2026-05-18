@@ -6,7 +6,7 @@ import {
 } from "@/data/inventoryStore";
 import type {
   InventoryItem, InventoryTransaction, ItemCategory, TransactionType,
-} from "@/types/inventory";
+} from "@/data/inventory";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +34,6 @@ const CATEGORY_OPTIONS: { label: string; value: ItemCategory }[] = [
   { label: "Raw Material", value: "Raw Material" },
   { label: "Finished Good", value: "Finished Good" },
   { label: "Packaging", value: "Packaging" },
-  { label: "Other", value: "Other" },
 ];
 
 const TX_TYPES: { value: TransactionType; label: string; dir: "in" | "out"; color: string }[] = [
@@ -379,7 +378,7 @@ const ProductsTab = () => {
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Select value={catFilter} onValueChange={setCat}>
+          <Select value={catFilter} onValueChange={(v) => setCat(v as "all" | ItemCategory)}>
             <SelectTrigger className="h-8 text-xs bg-muted/20 border-border/60"><SelectValue placeholder="Category" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
