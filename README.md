@@ -1,4 +1,5 @@
-# 🚀 COSMO ERP
+# 🚀 COSMO ERP 
+https://cosmo-erp-v1.vercel.app/
 
 A modern AI-powered ERP built on a real double-entry accounting engine.
 
