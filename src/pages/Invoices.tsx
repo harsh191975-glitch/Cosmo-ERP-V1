@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   buildInvoicesWithPayments, deleteInvoice, EnrichedInvoice,
 } from "@/data/invoiceStore";
-import { getTotalCreditForInvoice } from "@/data/creditNoteStore";
+import { getCustomers, CustomerRecord } from "@/data/customerStore";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -333,6 +333,7 @@ const AllInvoicesTab = () => {
 
   // ── Async data state ───────────────────────────────────────────
   const [invoicesWithPayments, setInvoicesWithPayments] = useState<EnrichedInvoice[]>([]);
+  const [customerMaster, setCustomerMaster] = useState<CustomerRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
@@ -340,8 +341,13 @@ const AllInvoicesTab = () => {
     setLoading(true);
     setFetchError(null);
     try {
-      const data = await buildInvoicesWithPayments();
+      // Fetch invoices + customer master in parallel — both required for the page
+      const [data, customers] = await Promise.all([
+        buildInvoicesWithPayments(),
+        getCustomers(),
+      ]);
       setInvoicesWithPayments(data);
+      setCustomerMaster(customers);
     } catch (err) {
       console.error("[Invoices] fetchData failed:", err);
       setFetchError("Failed to load invoices. Check your connection and try again.");
@@ -386,7 +392,14 @@ const AllInvoicesTab = () => {
     else { setSortKey(key); setSortDir("asc"); }
   };
 
-  const customers = useMemo(() => [...new Set(invoicesWithPayments.map(d => d.customerName))].sort(), [invoicesWithPayments]);
+  // ── Customer dropdown: ALWAYS from customerStore (single source of truth) ──
+  // Falls back gracefully: if customerMaster is empty (RLS / network issue),
+  // we also include names from existing invoices so filtering still works.
+  const customers = useMemo(() => {
+    const masterNames = customerMaster.map(c => c.customer_name);
+    const invoiceNames = invoicesWithPayments.map(d => d.customerName);
+    return [...new Set([...masterNames, ...invoiceNames])].sort();
+  }, [customerMaster, invoicesWithPayments]);
   const locations = useMemo(() => [...new Set(invoicesWithPayments.map(d => d.placeOfSupply))].sort(), [invoicesWithPayments]);
   const years     = useMemo(() => [...new Set(invoicesWithPayments.map(d => d.invoiceDate.slice(0, 4)))].sort(), [invoicesWithPayments]);
 

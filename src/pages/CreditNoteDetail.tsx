@@ -311,16 +311,25 @@ const CreditNoteDetail = () => {
 
   useEffect(() => {
     const decoded = decodeURIComponent(cnNumber ?? "");
-    const found = getAllCreditNotes().find(c => c.creditNoteNumber === decoded);
-    setCn(found);
-    if (found) {
-      getAllInvoices()
-        .then(invoices => setLinkedInvoice(invoices.find(inv => inv.invoiceNo === found.invoiceNo) ?? null))
-        .catch(err => console.error("[CreditNoteDetail] getAllInvoices failed:", err))
-        .finally(() => setDetailLoading(false));
-    } else {
-      setDetailLoading(false);
-    }
+    (async () => {
+      try {
+        const allNotes = await getAllCreditNotes();
+        const found = allNotes.find(c => c.creditNoteNumber === decoded);
+        setCn(found);
+        if (found) {
+          try {
+            const invoices = await getAllInvoices();
+            setLinkedInvoice(invoices.find(inv => inv.invoiceNo === found.invoiceNo) ?? null);
+          } catch (err) {
+            console.error("[CreditNoteDetail] getAllInvoices failed:", err);
+          }
+        }
+      } catch (err) {
+        console.error("[CreditNoteDetail] getAllCreditNotes failed:", err);
+      } finally {
+        setDetailLoading(false);
+      }
+    })();
   }, [cnNumber]);
 
   if (detailLoading) return (

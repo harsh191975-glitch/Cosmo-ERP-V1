@@ -22,6 +22,58 @@ export const COMPANY = {
 export const HSN_CODE = "39173990";
 export const GST_RATE = 18; // 9% CGST + 9% SGST
 
+// ── Indian GST state code → state name mapping ─────────────────
+// Source: GSTIN structure — first 2 digits are the state code.
+export const GST_STATE_CODES: Record<string, string> = {
+  "01": "Jammu & Kashmir",
+  "02": "Himachal Pradesh",
+  "03": "Punjab",
+  "04": "Chandigarh",
+  "05": "Uttarakhand",
+  "06": "Haryana",
+  "07": "Delhi",
+  "08": "Rajasthan",
+  "09": "Uttar Pradesh",
+  "10": "Bihar",
+  "11": "Sikkim",
+  "12": "Arunachal Pradesh",
+  "13": "Nagaland",
+  "14": "Manipur",
+  "15": "Mizoram",
+  "16": "Tripura",
+  "17": "Meghalaya",
+  "18": "Assam",
+  "19": "West Bengal",
+  "20": "Jharkhand",
+  "21": "Odisha",
+  "22": "Chhattisgarh",
+  "23": "Madhya Pradesh",
+  "24": "Gujarat",
+  "25": "Daman & Diu",
+  "26": "Dadra & Nagar Haveli",
+  "27": "Maharashtra",
+  "28": "Andhra Pradesh",
+  "29": "Karnataka",
+  "30": "Goa",
+  "31": "Lakshadweep",
+  "32": "Kerala",
+  "33": "Tamil Nadu",
+  "34": "Puducherry",
+  "35": "Andaman & Nicobar Islands",
+  "36": "Telangana",
+  "37": "Andhra Pradesh (New)",
+  "38": "Ladakh",
+  "97": "Other Territory",
+  "99": "Centre Jurisdiction",
+};
+
+// ── Derive state code + name from any 15-char GSTIN ────────────
+export function gstinToState(gstin: string): { code: string; name: string } {
+  const code = gstin?.trim().substring(0, 2) ?? "";
+  const name = GST_STATE_CODES[code] ?? "Unknown";
+  return { code, name };
+}
+
 export const fmtDate = (d: string) => {
   try { return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }); }
   catch { return d; }
@@ -108,6 +160,9 @@ export const InvoicePrintView = ({ invoice }: { invoice: PrintInvoice }) => {
   const cgstRate = invoice.gstRate / 2;
   const totalQty = invoice.lineItems.reduce((s, li) => s + li.quantity, 0);
   const totalTax = invoice.cgst + invoice.sgst;
+
+  // Derive customer's state dynamically from the first 2 digits of their GSTIN
+  const buyerState = gstinToState(invoice.gstin);
 
   // ONE border value used everywhere — no variation possible
   const border = "1px solid #000";
@@ -224,11 +279,11 @@ export const InvoicePrintView = ({ invoice }: { invoice: PrintInvoice }) => {
               <div style={{ fontWeight: "bold" }}>{invoice.customerName}</div>
               <div>Place of Supply: {invoice.placeOfSupply}</div>
               <div>GSTIN/UIN &nbsp;&nbsp;&nbsp;: {invoice.gstin}</div>
-              <div>State Name &nbsp;&nbsp;: {COMPANY.state}, Code : {COMPANY.stateCode}</div>
+              <div>State Name &nbsp;&nbsp;: {buyerState.name}, Code : {buyerState.code}</div>
             </td>
             <td style={{ ...tdBase, padding: "5px 7px" }}>
               <div style={{ fontSize: "8px" }}>Place of Supply</div>
-              <div>{invoice.placeOfSupply}, {COMPANY.state} ({COMPANY.stateCode})</div>
+              <div>{invoice.placeOfSupply}, {buyerState.name} ({buyerState.code})</div>
             </td>
           </tr>
         </tbody>
