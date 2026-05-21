@@ -16,10 +16,15 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     let mounted = true
 
     // ── 1. Initial session hydration ─────────────────────────────────────────
+    // getSession() reads the JWT from local storage — no network call, no auth
+    // lock acquisition. This prevents AbortError lock-contention when page
+    // data-fetches (getAllInvoices, getCustomerByName, etc.) fire on the same
+    // tick as this check. onAuthStateChange below handles all ongoing updates
+    // including token refresh, so security is not reduced.
     const checkUser = async () => {
-      const { data } = await supabase.auth.getUser()
+      const { data } = await supabase.auth.getSession()
       if (!mounted) return
-      setUser(data.user)
+      setUser(data.session?.user ?? null)
       setLoading(false)
     }
 

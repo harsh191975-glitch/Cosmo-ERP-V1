@@ -1,16 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getAllInvoices, getAllPayments } from "@/data/invoiceStore";
 import { getCustomerByName, upsertCustomer } from "@/data/customerStore";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Building2, ArrowLeft, CheckCircle, AlertCircle, Edit2,
-  Clock, RefreshCw, MapPin, Phone, Mail, Plus, Check, X,
+  Building2, ArrowLeft, AlertCircle, Edit2,
+  RefreshCw, MapPin, Phone, Mail, Plus, Check, X,
   ShieldCheck, FileText, CreditCard, User,
 } from "lucide-react";
 
@@ -19,6 +18,11 @@ const fmt = (n: number) =>
 
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" });
+
+// Normalise customer names for matching — strips "M/s ", "M/S ", "m/s " prefixes
+// and lowercases so "M/s Gupta Machinary" === "Gupta Machinary" in lookups.
+const normalizeName = (n: string) =>
+  n.toLowerCase().replace(/^m\/s\s+/i, "").trim();
 
 // ── Status pill ────────────────────────────────────────────────
 const STATUS_CFG: Record<string, { cls: string; dot: string }> = {
@@ -346,7 +350,9 @@ const CustomerProfile = () => {
         } else {
           // Fallback: build a minimal profile from invoice data so the page
           // still works for customers who exist in invoices but not in Supabase
-          const invoiceMatch = (await getAllInvoices()).find(i => i.customerName === name);
+          const invoiceMatch = (await getAllInvoices()).find(
+            i => normalizeName(i.customerName) === normalizeName(name)
+          );
           if (invoiceMatch) {
             setCustomer({
               id:            invoiceMatch.gstin,
@@ -392,7 +398,7 @@ const CustomerProfile = () => {
     rawPayments: Awaited<ReturnType<typeof getAllPayments>>,
   ) {
     return rawInvoices
-      .filter(d => d.customerName === name)
+      .filter(d => normalizeName(d.customerName) === normalizeName(name))
       .map(d => {
         const invPayments = rawPayments.filter(p => p.invoiceNo === d.invoiceNo);
         const totalPaid   = invPayments.reduce((s, p) => s + p.amountPaid, 0);
@@ -415,7 +421,7 @@ const CustomerProfile = () => {
         setInvoices(buildInvoiceRows(rawInvoices, rawPayments));
         setAllPayments(
           rawPayments
-            .filter(p => p.customerName === name)
+            .filter(p => normalizeName(p.customerName) === normalizeName(name))
             .sort((a, b) => b.paymentDate.localeCompare(a.paymentDate)),
         );
       })

@@ -137,6 +137,7 @@ export interface PrintInvoice {
   taxableAmount:     number;
   cgst:              number;
   sgst:              number;
+  igst?:             number;
   freight:           number;
   roundOff:          number;
   totalAmount:       number;
@@ -157,12 +158,13 @@ export interface PrintInvoice {
 
 // ── THE TALLY PRINT LAYOUT ────────────────────────────────────
 export const InvoicePrintView = ({ invoice }: { invoice: PrintInvoice }) => {
-  const cgstRate = invoice.gstRate / 2;
-  const totalQty = invoice.lineItems.reduce((s, li) => s + li.quantity, 0);
-  const totalTax = invoice.cgst + invoice.sgst;
-
   // Derive customer's state dynamically from the first 2 digits of their GSTIN
   const buyerState = gstinToState(invoice.gstin);
+  const isInterState = (invoice.igst && invoice.igst > 0) || (buyerState.code && buyerState.code !== COMPANY.stateCode);
+
+  const cgstRate = invoice.gstRate / 2;
+  const totalQty = invoice.lineItems.reduce((s, li) => s + li.quantity, 0);
+  const totalTax = isInterState ? (invoice.igst ?? 0) : (invoice.cgst + invoice.sgst);
 
   // ONE border value used everywhere — no variation possible
   const border = "1px solid #000";
@@ -320,18 +322,28 @@ export const InvoicePrintView = ({ invoice }: { invoice: PrintInvoice }) => {
               <td style={{ ...tdBase, textAlign: "right" }}>{fmtNum(li.lineAmount)}</td>
             </tr>
           ))}
-          {/* CGST */}
-          <tr>
-            <td colSpan={7} style={{ border }}></td>
-            <td style={{ ...tdBase, textAlign: "right", fontStyle: "italic" }}>CGST</td>
-            <td style={{ ...tdBase, textAlign: "right" }}>{fmtNum(invoice.cgst)}</td>
-          </tr>
-          {/* SGST */}
-          <tr>
-            <td colSpan={7} style={{ border }}></td>
-            <td style={{ ...tdBase, textAlign: "right", fontStyle: "italic" }}>SGST</td>
-            <td style={{ ...tdBase, textAlign: "right" }}>{fmtNum(invoice.sgst)}</td>
-          </tr>
+          {isInterState ? (
+            <tr>
+              <td colSpan={7} style={{ border }}></td>
+              <td style={{ ...tdBase, textAlign: "right", fontStyle: "italic" }}>IGST</td>
+              <td style={{ ...tdBase, textAlign: "right" }}>{fmtNum(invoice.igst ?? 0)}</td>
+            </tr>
+          ) : (
+            <>
+              {/* CGST */}
+              <tr>
+                <td colSpan={7} style={{ border }}></td>
+                <td style={{ ...tdBase, textAlign: "right", fontStyle: "italic" }}>CGST</td>
+                <td style={{ ...tdBase, textAlign: "right" }}>{fmtNum(invoice.cgst)}</td>
+              </tr>
+              {/* SGST */}
+              <tr>
+                <td colSpan={7} style={{ border }}></td>
+                <td style={{ ...tdBase, textAlign: "right", fontStyle: "italic" }}>SGST</td>
+                <td style={{ ...tdBase, textAlign: "right" }}>{fmtNum(invoice.sgst)}</td>
+              </tr>
+            </>
+          )}
           {/* Freight */}
           {invoice.freight !== 0 && (
             <tr>
@@ -380,42 +392,76 @@ export const InvoicePrintView = ({ invoice }: { invoice: PrintInvoice }) => {
           ════════════════════════════════════════ */}
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
-          <tr>
-            <th style={{ ...tdBase, fontWeight: "bold", textAlign: "left" }}>HSN/SAC</th>
-            <th style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>Total Taxable<br/>Value</th>
-            <th style={{ ...tdBase, fontWeight: "bold", textAlign: "center" }} colSpan={2}>CGST</th>
-            <th style={{ ...tdBase, fontWeight: "bold", textAlign: "center" }} colSpan={2}>SGST/UTGST</th>
-            <th style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>Total Tax Amount</th>
-          </tr>
+          {isInterState ? (
+            <tr>
+              <th style={{ ...tdBase, fontWeight: "bold", textAlign: "left" }}>HSN/SAC</th>
+              <th style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>Total Taxable<br/>Value</th>
+              <th style={{ ...tdBase, fontWeight: "bold", textAlign: "center" }} colSpan={2}>Integrated Tax</th>
+              <th style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>Total Tax Amount</th>
+            </tr>
+          ) : (
+            <tr>
+              <th style={{ ...tdBase, fontWeight: "bold", textAlign: "left" }}>HSN/SAC</th>
+              <th style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>Total Taxable<br/>Value</th>
+              <th style={{ ...tdBase, fontWeight: "bold", textAlign: "center" }} colSpan={2}>CGST</th>
+              <th style={{ ...tdBase, fontWeight: "bold", textAlign: "center" }} colSpan={2}>SGST/UTGST</th>
+              <th style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>Total Tax Amount</th>
+            </tr>
+          )}
           <tr>
             <th style={{ ...tdBase, fontWeight: "bold" }}></th>
             <th style={{ ...tdBase, fontWeight: "bold" }}></th>
             <th style={{ ...tdBase, fontWeight: "bold", textAlign: "center" }}>Rate</th>
             <th style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>Amount</th>
-            <th style={{ ...tdBase, fontWeight: "bold", textAlign: "center" }}>Rate</th>
-            <th style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>Amount</th>
+            {!isInterState && (
+              <>
+                <th style={{ ...tdBase, fontWeight: "bold", textAlign: "center" }}>Rate</th>
+                <th style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>Amount</th>
+              </>
+            )}
             <th style={{ ...tdBase, fontWeight: "bold" }}></th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td style={tdBase}>{HSN_CODE}</td>
-            <td style={{ ...tdBase, textAlign: "right" }}>{fmtNum(invoice.taxableAmount)}</td>
-            <td style={{ ...tdBase, textAlign: "center" }}>{cgstRate}%</td>
-            <td style={{ ...tdBase, textAlign: "right" }}>{fmtNum(invoice.cgst)}</td>
-            <td style={{ ...tdBase, textAlign: "center" }}>{cgstRate}%</td>
-            <td style={{ ...tdBase, textAlign: "right" }}>{fmtNum(invoice.sgst)}</td>
-            <td style={{ ...tdBase, textAlign: "right" }}>{fmtNum(totalTax)}</td>
-          </tr>
-          <tr>
-            <td style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>Total</td>
-            <td style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>{fmtNum(invoice.taxableAmount)}</td>
-            <td style={{ border }}></td>
-            <td style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>{fmtNum(invoice.cgst)}</td>
-            <td style={{ border }}></td>
-            <td style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>{fmtNum(invoice.sgst)}</td>
-            <td style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>{fmtNum(totalTax)}</td>
-          </tr>
+          {isInterState ? (
+            <>
+              <tr>
+                <td style={tdBase}>{HSN_CODE}</td>
+                <td style={{ ...tdBase, textAlign: "right" }}>{fmtNum(invoice.taxableAmount)}</td>
+                <td style={{ ...tdBase, textAlign: "center" }}>{invoice.gstRate}%</td>
+                <td style={{ ...tdBase, textAlign: "right" }}>{fmtNum(invoice.igst ?? 0)}</td>
+                <td style={{ ...tdBase, textAlign: "right" }}>{fmtNum(totalTax)}</td>
+              </tr>
+              <tr>
+                <td style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>Total</td>
+                <td style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>{fmtNum(invoice.taxableAmount)}</td>
+                <td style={{ border }}></td>
+                <td style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>{fmtNum(invoice.igst ?? 0)}</td>
+                <td style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>{fmtNum(totalTax)}</td>
+              </tr>
+            </>
+          ) : (
+            <>
+              <tr>
+                <td style={tdBase}>{HSN_CODE}</td>
+                <td style={{ ...tdBase, textAlign: "right" }}>{fmtNum(invoice.taxableAmount)}</td>
+                <td style={{ ...tdBase, textAlign: "center" }}>{cgstRate}%</td>
+                <td style={{ ...tdBase, textAlign: "right" }}>{fmtNum(invoice.cgst)}</td>
+                <td style={{ ...tdBase, textAlign: "center" }}>{cgstRate}%</td>
+                <td style={{ ...tdBase, textAlign: "right" }}>{fmtNum(invoice.sgst)}</td>
+                <td style={{ ...tdBase, textAlign: "right" }}>{fmtNum(totalTax)}</td>
+              </tr>
+              <tr>
+                <td style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>Total</td>
+                <td style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>{fmtNum(invoice.taxableAmount)}</td>
+                <td style={{ border }}></td>
+                <td style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>{fmtNum(invoice.cgst)}</td>
+                <td style={{ border }}></td>
+                <td style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>{fmtNum(invoice.sgst)}</td>
+                <td style={{ ...tdBase, fontWeight: "bold", textAlign: "right" }}>{fmtNum(totalTax)}</td>
+              </tr>
+            </>
+          )}
         </tbody>
       </table>
 

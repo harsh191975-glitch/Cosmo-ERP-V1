@@ -531,8 +531,14 @@ const InvoiceDetail = () => {
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Financial Summary</p>
             {[
               { label: "Taxable Amount",                  value: invoice.taxableAmount, color: "" },
-              { label: `CGST @ ${invoice.gstRate / 2}%`, value: invoice.cgst,          color: "text-amber-400" },
-              { label: `SGST @ ${invoice.gstRate / 2}%`, value: invoice.sgst,          color: "text-amber-400" },
+              // Inter-state invoice: show IGST only. Intra-state: show CGST + SGST.
+              ...(invoice.igst > 0
+                ? [{ label: `IGST @ ${invoice.gstRate}%`, value: invoice.igst, color: "text-amber-400" }]
+                : [
+                    { label: `CGST @ ${invoice.gstRate / 2}%`, value: invoice.cgst, color: "text-amber-400" },
+                    { label: `SGST @ ${invoice.gstRate / 2}%`, value: invoice.sgst, color: "text-amber-400" },
+                  ]
+              ),
               ...(invoice.freight  !== 0 ? [{ label: "Freight",   value: invoice.freight,  color: "text-purple-400" }] : []),
               ...(invoice.roundOff !== 0 ? [{ label: "Round Off", value: invoice.roundOff, color: "text-muted-foreground" }] : []),
             ].map(({ label, value, color }) => (

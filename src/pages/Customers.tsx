@@ -66,6 +66,9 @@ interface CustomerStats {
 
 interface EnrichedCustomer extends CustomerForm, CustomerStats {}
 
+const normalizeCustomerName = (value: string) =>
+  value.toLowerCase().replace(/^m\/s\s+/i, "").trim();
+
 const formatCurrency = (n: number) =>
   "₹" + n.toLocaleString("en-IN", { maximumFractionDigits: 0 });
 
@@ -184,18 +187,35 @@ function buildStatsMap(invoices: EnrichedInvoice[]): Map<string, CustomerStats> 
   const map = new Map<string, CustomerStats>();
 
   invoices.forEach((invoice) => {
-    const key = invoice.gstin || invoice.customerName.trim().toLowerCase();
-    const current = map.get(key) ?? { ...EMPTY_STATS };
+    const nameKey = normalizeCustomerName(invoice.customerName);
+    const primaryKey = invoice.gstin || nameKey;
+    const current = map.get(primaryKey) ?? map.get(nameKey) ?? { ...EMPTY_STATS };
     current.totalRevenue += invoice.totalAmount;
     current.totalPaid += invoice.totalPaid;
     current.totalOutstanding += invoice.outstanding;
     current.invoiceCount += 1;
     if (invoice.outstanding > 0) current.pendingCount += 1;
     if (invoice.invoiceDate > current.lastInvoice) current.lastInvoice = invoice.invoiceDate;
-    map.set(key, current);
+    map.set(primaryKey, current);
+    map.set(nameKey, current);
   });
 
   return map;
+}
+
+function getStatsForCustomer(row: CustomerRecord, invoiceStats: Map<string, CustomerStats>): CustomerStats {
+  const keys = [
+    row.gstin,
+    normalizeCustomerName(row.customer_name),
+    normalizeCustomerName(row.trade_name ?? ""),
+  ].filter(Boolean);
+
+  for (const key of keys) {
+    const stats = invoiceStats.get(key);
+    if (stats) return stats;
+  }
+
+  return EMPTY_STATS;
 }
 
 type FormTab = "gst" | "contact" | "financial";
@@ -597,10 +617,9 @@ const Customers = () => {
   const allCustomers = useMemo<EnrichedCustomer[]>(() => {
     return customerRows
       .map((row) => {
-        const key = row.gstin || row.customer_name.trim().toLowerCase();
         return {
           ...toCustomerForm(row),
-          ...(invoiceStats.get(key) ?? EMPTY_STATS),
+          ...getStatsForCustomer(row, invoiceStats),
         };
       })
       .sort((a, b) => a.legalName.localeCompare(b.legalName));

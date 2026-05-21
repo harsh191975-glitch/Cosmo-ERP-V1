@@ -13,7 +13,7 @@
  * See src/pages/Invoices.tsx and InvoiceDetail.tsx for reference.
  */
 
-import { supabase, getCurrentUserId } from "@/lib/supabaseClient";
+import { supabase, getCurrentUserId, withRetry } from "@/lib/supabaseClient";
 import {
   deleteCreditNotesByInvoice,
   getTotalCreditForInvoiceAsync,
@@ -46,6 +46,7 @@ export interface Invoice {
   taxableAmount:      number;
   cgst:               number;
   sgst:               number;
+  igst:               number;   // 0 for intra-state; populated for inter-state (place_of_supply !== Bihar)
   freight:            number;
   roundOff:           number;
   totalAmount:        number;
@@ -92,6 +93,22 @@ export interface EnrichedInvoice extends Invoice {
   invoicePayments:  Payment[];
 }
 
+export function buildEnrichedInvoices(
+  invoices: Invoice[],
+  allPayments: Payment[],
+  creditTotalsMap: Map<string, number>,
+): EnrichedInvoice[] {
+  return invoices.map(inv => {
+    const invoicePayments  = allPayments.filter(p => p.invoiceNo === inv.invoiceNo);
+    const totalPaid        = invoicePayments.reduce((s, p) => s + p.amountPaid, 0);
+    const totalCreditNotes = creditTotalsMap.get(inv.invoiceNo) ?? 0;
+    const outstanding      = Math.max(0, inv.totalAmount - totalPaid - totalCreditNotes);
+    const status           = computeStatus(inv.totalAmount, totalPaid, totalCreditNotes, inv.invoiceDate);
+
+    return { ...inv, totalPaid, totalCreditNotes, outstanding, status, invoicePayments };
+  });
+}
+
 // ── Row → domain mappers ──────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,6 +137,7 @@ function rowToInvoice(row: any, idx: number): Invoice {
     taxableAmount:     Number(row.taxable_amount ?? 0),
     cgst:              Number(row.cgst           ?? 0),
     sgst:              Number(row.sgst           ?? 0),
+    igst:              Number(row.igst           ?? 0),
     freight:           Number(row.freight        ?? 0),
     roundOff:          Number(row.round_off      ?? 0),
     totalAmount:       Number(row.total_amount   ?? 0),
@@ -170,10 +188,9 @@ function getFinancialYearSuffix(baseDate = new Date()): string {
 // ── Async reads ───────────────────────────────────────────────────────────────
 
 export async function getAllInvoices(): Promise<Invoice[]> {
-  const { data, error } = await supabase
-    .from("invoices")
-    .select("*")
-    .order("invoice_date", { ascending: false });
+  const { data, error } = await withRetry(() =>
+    supabase.from("invoices").select("*").order("invoice_date", { ascending: false })
+  );
 
   if (error) {
     console.error("[invoiceStore] getAllInvoices:", error.message);
@@ -183,11 +200,9 @@ export async function getAllInvoices(): Promise<Invoice[]> {
 }
 
 export async function getInvoiceByNo(invoiceNo: string): Promise<Invoice | null> {
-  const { data, error } = await supabase
-    .from("invoices")
-    .select("*")
-    .eq("invoice_no", invoiceNo)
-    .maybeSingle();
+  const { data, error } = await withRetry(() =>
+    supabase.from("invoices").select("*").eq("invoice_no", invoiceNo).maybeSingle()
+  );
 
   if (error) {
     console.error("[invoiceStore] getInvoiceByNo:", error.message);
@@ -210,11 +225,9 @@ export async function getAllPayments(): Promise<Payment[]> {
 }
 
 export async function getPaymentsForInvoice(invoiceNo: string): Promise<Payment[]> {
-  const { data, error } = await supabase
-    .from("invoice_payments")
-    .select("*")
-    .eq("invoice_no", invoiceNo)
-    .order("payment_date", { ascending: false });
+  const { data, error } = await withRetry(() =>
+    supabase.from("invoice_payments").select("*").eq("invoice_no", invoiceNo).order("payment_date", { ascending: false })
+  );
 
   if (error) {
     console.error("[invoiceStore] getPaymentsForInvoice:", error.message);
@@ -261,6 +274,7 @@ export async function saveInvoice(invoice: Invoice): Promise<void> {
       taxable_amount:     invoice.taxableAmount,
       cgst:               invoice.cgst,
       sgst:               invoice.sgst,
+      igst:               invoice.igst,
       freight:            invoice.freight,
       round_off:          invoice.roundOff,
       total_amount:       invoice.totalAmount,
@@ -370,15 +384,7 @@ export async function buildInvoicesWithPayments(): Promise<EnrichedInvoice[]> {
   const invoiceNos       = invoices.map(inv => inv.invoiceNo);
   const creditTotalsMap  = await getCreditTotalsForInvoices(invoiceNos);
 
-  return invoices.map(inv => {
-    const invoicePayments  = allPayments.filter(p => p.invoiceNo === inv.invoiceNo);
-    const totalPaid        = invoicePayments.reduce((s, p) => s + p.amountPaid, 0);
-    const totalCreditNotes = creditTotalsMap.get(inv.invoiceNo) ?? 0;
-    const outstanding      = Math.max(0, inv.totalAmount - totalPaid - totalCreditNotes);
-    const status           = computeStatus(inv.totalAmount, totalPaid, totalCreditNotes, inv.invoiceDate);
-
-    return { ...inv, totalPaid, totalCreditNotes, outstanding, status, invoicePayments };
-  });
+  return buildEnrichedInvoices(invoices, allPayments, creditTotalsMap);
 }
 
 // ── Freight lookup (used by RecordExpense.tsx) ────────────────────────────────

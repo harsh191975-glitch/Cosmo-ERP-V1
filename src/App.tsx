@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import DashboardSidebar from "@/components/DashboardSidebar";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { HydratedDataProvider } from "@/hooks/useHydratedData";
 
 import Index from "@/pages/Index";
 import Invoices from "@/pages/Invoices";
@@ -22,21 +23,26 @@ import NotFound from "@/pages/NotFound";
 /**
  * Layout route for all protected pages.
  * ProtectedRoute handles the auth check + redirect to /login.
+ * HydratedDataProvider preloads all critical ERP data (invoices, payments, engine)
+ * once auth is confirmed — so child routes never run against empty stores.
  * DashboardSidebar renders once here — not per-route.
  * <Outlet /> is where child routes render.
  */
 const ProtectedLayout = () => (
   <ProtectedRoute>
-    <div className="flex min-h-screen bg-background">
-      <DashboardSidebar />
-      <main className="flex-1 overflow-y-auto overflow-x-hidden">
-        <div className="px-6 py-5">
-          <Outlet />
-        </div>
-      </main>
-    </div>
+    <HydratedDataProvider>
+      <div className="flex min-h-screen bg-background">
+        <DashboardSidebar />
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="px-6 py-5">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </HydratedDataProvider>
   </ProtectedRoute>
 );
+
 
 const App = () => {
   return (

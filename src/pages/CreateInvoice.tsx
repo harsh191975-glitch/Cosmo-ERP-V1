@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getAllInvoices, saveInvoice, getNextInvoiceNo } from "@/data/invoiceStore";
-import { Invoice } from "@/data/financeData";
+import { Invoice } from "@/data/invoiceStore";
 import { getCustomers, upsertCustomer, CustomerRecord } from "@/data/customerStore";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -157,6 +157,11 @@ const CreateInvoice = () => {
   const [placeOfSupply,setPos]        = useState("");
   const [isCustomCust, setCustomCust] = useState(false);
 
+  // Inter-state detection: GSTIN starts with state code.
+  // Bihar = "10". Any other prefix means inter-state → IGST applies.
+  // Falls back to false (intra-state) when gstin is empty/short.
+  const isInterState = gstin.length >= 2 && !gstin.startsWith("10");
+
   useEffect(() => {
     if (!urlCustomerName || customersLoading) return;
     const match = customerMaster.find(c => c.customer_name === urlCustomerName);
@@ -211,14 +216,17 @@ const CreateInvoice = () => {
 
   const calcs = useMemo(() => {
     const taxableAmount = r2(lines.reduce((s, l) => s + l.lineAmount, 0));
-    const cgst          = r2(taxableAmount * (GST_RATE / 2) / 100);
-    const sgst          = cgst;
+    // Inter-state: full GST as IGST. Intra-state: split equally into CGST + SGST.
+    const totalGst      = r2(taxableAmount * GST_RATE / 100);
+    const igst          = isInterState ? totalGst : 0;
+    const cgst          = isInterState ? 0 : r2(totalGst / 2);
+    const sgst          = isInterState ? 0 : r2(totalGst / 2);
     const freightVal    = Number(freight) || 0;
-    const raw           = taxableAmount + cgst + sgst + freightVal;
+    const raw           = taxableAmount + totalGst + freightVal;
     const roundOff      = r2(Math.round(raw) - raw);
     const totalAmount   = r2(raw + roundOff);
-    return { taxableAmount, cgst, sgst, roundOff, totalAmount };
-  }, [lines, freight]);
+    return { taxableAmount, igst, cgst, sgst, roundOff, totalAmount };
+  }, [lines, freight, isInterState]);
 
   const previewInvoice: PrintInvoice = {
     invoiceNo,
@@ -233,6 +241,7 @@ const CreateInvoice = () => {
     taxableAmount:     calcs.taxableAmount,
     cgst:              calcs.cgst,
     sgst:              calcs.sgst,
+    igst:              calcs.igst,
     freight:           Number(freight) || 0,
     roundOff:          calcs.roundOff,
     totalAmount:       calcs.totalAmount,
@@ -290,6 +299,7 @@ const CreateInvoice = () => {
         taxableAmount:     calcs.taxableAmount,
         cgst:              calcs.cgst,
         sgst:              calcs.sgst,
+        igst:              calcs.igst,
         freight:           Number(freight) || 0,
         roundOff:          calcs.roundOff,
         totalAmount:       calcs.totalAmount,
@@ -730,14 +740,23 @@ const CreateInvoice = () => {
                 <span className="text-muted-foreground">Taxable Amount</span>
                 <span className="tabular-nums font-semibold">₹{fmtNum(calcs.taxableAmount)}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">CGST @ {GST_RATE / 2}%</span>
-                <span className="tabular-nums text-amber-400">₹{fmtNum(calcs.cgst)}</span>
-              </div>
-              <div className="flex justify-between items-center pb-1 border-b border-border/30">
-                <span className="text-muted-foreground">SGST @ {GST_RATE / 2}%</span>
-                <span className="tabular-nums text-amber-400">₹{fmtNum(calcs.sgst)}</span>
-              </div>
+              {isInterState ? (
+                <div className="flex justify-between items-center pb-1 border-b border-border/30">
+                  <span className="text-muted-foreground">IGST @ {GST_RATE}%</span>
+                  <span className="tabular-nums text-amber-400">₹{fmtNum(calcs.igst)}</span>
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">CGST @ {GST_RATE / 2}%</span>
+                    <span className="tabular-nums text-amber-400">₹{fmtNum(calcs.cgst)}</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-1 border-b border-border/30">
+                    <span className="text-muted-foreground">SGST @ {GST_RATE / 2}%</span>
+                    <span className="tabular-nums text-amber-400">₹{fmtNum(calcs.sgst)}</span>
+                  </div>
+                </>
+              )}
               {Number(freight) !== 0 && (
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Freight (−)</span>

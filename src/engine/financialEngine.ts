@@ -82,6 +82,9 @@ const InvoiceSchema = BaseRecord.extend({
     invoice_date: z.string(),
     taxable_amount: z.number().nonnegative(),
     total_amount: z.number().nonnegative(),
+    igst: z.number().nonnegative().optional().default(0),
+    cgst: z.number().nonnegative().optional().default(0),
+    sgst: z.number().nonnegative().optional().default(0),
 });
 
 const PaymentSchema = BaseRecord.extend({
@@ -321,6 +324,14 @@ export async function runEnterpriseEngine(
     targetPeriod: string,
     dbSnapshotId: string,
     initialBalances?: Partial<Record<AccountName, number>>,
+    snapshot?: {
+        invoices: Awaited<ReturnType<typeof getAllInvoices>>;
+        payments: Awaited<ReturnType<typeof getAllPayments>>;
+        purchases: Awaited<ReturnType<typeof getPurchases>>;
+        expenses: Awaited<ReturnType<typeof getExpenses>>;
+        creditNotes: Awaited<ReturnType<typeof getAllCreditNotes>>;
+        stockSummary: Awaited<ReturnType<typeof getStockSummary>>;
+    },
 ) {
     const audit = new AuditLedger();
     const GL = new GeneralLedger();
@@ -376,23 +387,31 @@ export async function runEnterpriseEngine(
     let rawCns: Awaited<ReturnType<typeof getAllCreditNotes>> = [];
 
     try {
-        const [invData, pmtData, purData, expData, cnData, stockData] = await Promise.all([
-            getAllInvoices(),
-            getAllPayments(),
-            getPurchases(),
-            getExpenses(),
-            getAllCreditNotes(),
-            getStockSummary(periodStart)
-        ]);
-        rawInvoices = invData;
-        rawPayments = pmtData;
-        rawPurchases = purData;
-        rawExpenses = expData;
-        rawCns = cnData;
-        const stockSummary = stockData;
+        if (snapshot) {
+            rawInvoices = snapshot.invoices;
+            rawPayments = snapshot.payments;
+            rawPurchases = snapshot.purchases;
+            rawExpenses = snapshot.expenses;
+            rawCns = snapshot.creditNotes;
+            (metadata as any).stockSummary = snapshot.stockSummary;
+        } else {
+            const [invData, pmtData, purData, expData, cnData, stockData] = await Promise.all([
+                getAllInvoices(),
+                getAllPayments(),
+                getPurchases(),
+                getExpenses(),
+                getAllCreditNotes(),
+                getStockSummary(periodStart)
+            ]);
+            rawInvoices = invData;
+            rawPayments = pmtData;
+            rawPurchases = purData;
+            rawExpenses = expData;
+            rawCns = cnData;
 
-        // [NEW] Store stock summary for COGS adjustment
-        (metadata as any).stockSummary = stockSummary;
+            // [NEW] Store stock summary for COGS adjustment
+            (metadata as any).stockSummary = stockData;
+        }
     } catch (err: any) {
         console.error("[COSMO Engine] Fatal data fetch error:", err);
         audit.record("CRITICAL", "DATA_LOAD_FAIL", "SYSTEM", 0, `Failed to fetch datasets: ${err.message}`);
@@ -400,12 +419,13 @@ export async function runEnterpriseEngine(
 
     // Dual-track graph to separate AR (post-tax) limit from revenue (pre-tax) base
     const invoiceGraph = new Map<string, {
-        date: string;       // [NEW] Track date for business-view filtering
-        tot: number;        // total (post-tax) in paise — AR limit
-        tax: number;        // taxable (pre-tax) in paise — revenue base
-        appliedPmtTot: number;  // total payments applied (post-tax)
-        appliedCnTot: number;   // total CN applied (post-tax)
-        appliedCnTax: number;   // CN taxable component applied (pre-tax)
+        date: string;          // [NEW] Track date for business-view filtering
+        tot: number;           // total (post-tax) in paise — AR limit
+        tax: number;           // taxable (pre-tax) in paise — revenue base
+        appliedPmtTot: number; // total payments applied (post-tax)
+        appliedCnTot: number;  // total CN applied (post-tax)
+        appliedCnTax: number;  // CN taxable component applied (pre-tax)
+        isInterState: boolean; // true = IGST invoice (inter-state), false = CGST+SGST
     }>();
 
     const seenIds = new Set<string>();
@@ -429,6 +449,9 @@ export async function runEnterpriseEngine(
             invoice_date: raw.invoiceDate,
             taxable_amount: raw.taxableAmount,
             total_amount: raw.totalAmount,
+            igst: raw.igst ?? 0,
+            cgst: raw.cgst ?? 0,
+            sgst: raw.sgst ?? 0,
         };
         const parsed = InvoiceSchema.safeParse(normalized);
         if (!parsed.success) {
@@ -442,13 +465,19 @@ export async function runEnterpriseEngine(
         audit.metrics.processedVal += totInt;
         if (checkDuplicate(inv.id || inv.invoice_no, totInt)) continue;
 
+        const isInterState = (inv.igst ?? 0) > 0;
+
         invoiceGraph.set(inv.invoice_no, {
             date: inv.invoice_date,
             tot: totInt, tax: taxInt,
             appliedPmtTot: 0, appliedCnTot: 0, appliedCnTax: 0,
+            isInterState,
         });
 
         if (isPeriod(toPeriodKey(inv.invoice_date), targetPeriod, periodSet)) {
+            // GST total = total_amount - taxable_amount regardless of IGST vs CGST+SGST.
+            // Both flow into GST_PAYABLE — no separate ledger account needed since
+            // input ITC (purchases) is always CGST+SGST from Bihar suppliers.
             const gstInt = totInt - taxInt;
             GL.post(inv.invoice_date, "AR", "REVENUE", taxInt, inv.invoice_no);
             if (gstInt > 0) GL.post(inv.invoice_date, "AR", "GST_PAYABLE", gstInt, inv.invoice_no);

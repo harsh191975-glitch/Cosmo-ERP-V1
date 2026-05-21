@@ -13,13 +13,50 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
+ * Retry wrapper for Supabase data fetches that may fail with AbortError
+ * due to auth lock contention during initial page mount.
+ *
+ * ONLY retries on AbortError (transient auth race). All other errors
+ * (network, RLS, bad query) are thrown immediately — no blind retrying.
+ *
+ * Usage:
+ *   const data = await withRetry(() => supabase.from("invoices").select("*"));
+ *
+ * @param fn      Async factory that returns a Supabase query result.
+ * @param retries Max retry attempts (default: 2). Total attempts = retries + 1.
+ * @param delayMs Wait between retries in ms (default: 120ms).
+ */
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  retries = 2,
+  delayMs = 120,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const isAbort =
+        err instanceof Error &&
+        (err.name === "AbortError" || err.message.includes("AbortError") || err.message.includes("Lock"));
+      if (!isAbort) throw err;           // real error — surface immediately
+      lastError = err;
+      if (attempt < retries) {
+        await new Promise(res => setTimeout(res, delayMs * (attempt + 1)));
+      }
+    }
+  }
+  throw lastError;
+}
+
+/**
  * Returns the authenticated user's ID for RLS-compliant inserts.
  *
  * PERFORMANCE: Uses getSession() (reads the local JWT from storage — no
  * network round-trip) instead of getUser() (which hits the Supabase Auth
  * server on every call). This is safe for write operations because:
  *   - The session token was already verified by Supabase when the user logged in.
- *   - ProtectedRoute re-validates via getUser() on every page mount.
+ *   - ProtectedRoute hydrates via getSession(); onAuthStateChange re-validates on token refresh.
  *   - Supabase RLS re-validates auth.uid() server-side on every insert anyway.
  *
  * FAIL-FAST: Throws immediately if no session exists. Callers must not

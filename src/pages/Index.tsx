@@ -1,19 +1,9 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabaseClient";
-import { runEnterpriseEngine } from "@/engine/financialEngine";
-import {
-  getAllPayments,
-  buildInvoicesWithPayments,
-  EnrichedInvoice,
-  Payment,
-} from "@/data/invoiceStore";
-import { getPurchases } from "@/data/purchaseStore";
-import { getExpenses } from "@/data/expenseStore";
-// ⚠️ ARCHITECTURE RULE: getPurchases and getExpenses are imported for type-checking only.
-// They are intentionally NOT called in this component.
-// ALL financial KPI totals — expenses, purchases, revenue, profit — flow exclusively
-// through runEnterpriseEngine(). No UI-level aggregation is permitted.
+import { useHydratedData } from "@/hooks/useHydratedData";
+// ⚠️ ARCHITECTURE RULE: ALL financial KPI totals — expenses, purchases, revenue, profit —
+// flow exclusively through runEnterpriseEngine() via the global HydratedDataProvider.
+// No UI-level aggregation is permitted.
 // Raw store data is only used for: transaction lists, monthly charts, invoice status counts.
 import {
   IndianRupee, TrendingUp, AlertCircle, CheckCircle,
@@ -108,73 +98,18 @@ const SectionLabel = ({ icon: Icon, label, accent }: { icon: any; label: string;
 const Index = () => {
   const navigate = useNavigate();
 
-  // ── State ────────────────────────────────────────────────────
-  const [invoicesWithPayments, setInvoicesWithPayments] = useState<EnrichedInvoice[]>([]);
-  const [payments,             setPayments]             = useState<Payment[]>([]);
-
-  const [loadingInvoices,  setLoadingInvoices]  = useState(true);
-
-  // ── Engine state ─────────────────────────────────────────────
-  type EngineResult = Awaited<ReturnType<typeof runEnterpriseEngine>>;
-  const [engine,        setEngine]        = useState<EngineResult | null>(null);
-  const [loadingEngine, setLoadingEngine] = useState(true);
-
-  // ── Data fetchers ────────────────────────────────────────────
-  const fetchInvoiceData = useCallback(async () => {
-    setLoadingInvoices(true);
-    try {
-      const [enriched, allPayments] = await Promise.all([
-        buildInvoicesWithPayments(),
-        getAllPayments(),
-      ]);
-      setInvoicesWithPayments(enriched);
-      setPayments(allPayments);
-    } catch (err) {
-      console.error("[Index] fetchInvoiceData failed:", err);
-    } finally {
-      setLoadingInvoices(false);
-    }
-  }, []);
-
-  const fetchEngine = useCallback(async () => {
-    setLoadingEngine(true);
-    try {
-      // [AUTH-GUARD] Do not run the engine until the Supabase session is confirmed.
-      // Without this, RLS returns empty rows on origins that load the JWT from
-      // storage asynchronously (e.g. LAN IP access, hard refresh on non-localhost).
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        console.warn("[Index] fetchEngine: no active session — skipping engine run.");
-        return;
-      }
-      const result = await runEnterpriseEngine("all", "dashboard");
-      setEngine(result);
-    } catch (err) {
-      console.error("[Index] runEnterpriseEngine failed:", err);
-    } finally {
-      setLoadingEngine(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    // [AUTH-GUARD] Wait for the Supabase session to be hydrated from storage before
-    // firing any store fetches. On LAN-IP or after hard refresh, the JWT is read
-    // asynchronously from localStorage — calling stores before this completes causes
-    // RLS to reject queries and return empty data, producing zeroed-out dashboards.
-    async function init() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        console.warn("[Index] init: no active session — skipping all data fetches.");
-        // Set all loading states to false so the UI doesn't hang on spinners.
-        setLoadingInvoices(false);
-        setLoadingEngine(false);
-        return;
-      }
-      fetchInvoiceData();
-      fetchEngine();
-    }
-    init();
-  }, [fetchInvoiceData, fetchEngine]);
+  // ── Consume pre-loaded data from global hydration layer ──────
+  // All critical data (invoices, payments, engine) is fetched ONCE by
+  // HydratedDataProvider in App.tsx after auth confirmation.
+  // No independent fetches, no session races, no stale-zero KPIs.
+  const {
+    invoicesWithPayments,
+    payments,
+    engine,
+    loading: isLoading,
+    loadingInvoices,
+    loadingEngine,
+  } = useHydratedData();
 
   // ── Expense KPIs — sourced exclusively from engine.metrics.business
   // No local reduce() or sumByCategory() — all totals flow through the financial engine.
@@ -277,8 +212,6 @@ const Index = () => {
     borderRadius: 16,
     backdropFilter: "blur(12px)",
   } as React.CSSProperties;
-
-  const isLoading = loadingInvoices || loadingEngine;
 
   // ── Loading skeleton ─────────────────────────────────────────
   if (isLoading) {

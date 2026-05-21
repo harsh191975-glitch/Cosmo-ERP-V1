@@ -1,4 +1,4 @@
-import { supabase, getCurrentUserId } from "@/lib/supabaseClient";
+import { supabase, getCurrentUserId, withRetry } from "@/lib/supabaseClient";
 
 export type CustomerStatus = "Active" | "Inactive" | "Blacklisted";
 
@@ -93,10 +93,9 @@ function toPayload(customer: CustomerInput, userId: string) {
 }
 
 export async function getCustomers(): Promise<CustomerRecord[]> {
-  const { data, error } = await supabase
-    .from("customers")
-    .select(CUSTOMER_SELECT)
-    .order("customer_name", { ascending: true });
+  const { data, error } = await withRetry(() =>
+    supabase.from("customers").select(CUSTOMER_SELECT).order("customer_name", { ascending: true })
+  );
 
   if (error) {
     throw new Error(`[customerStore] getCustomers: ${error.message}`);
@@ -106,11 +105,9 @@ export async function getCustomers(): Promise<CustomerRecord[]> {
 }
 
 export async function getCustomerByName(name: string): Promise<CustomerRecord | null> {
-  const { data, error } = await supabase
-    .from("customers")
-    .select(CUSTOMER_SELECT)
-    .eq("customer_name", name)
-    .maybeSingle();
+  const { data, error } = await withRetry(() =>
+    supabase.from("customers").select(CUSTOMER_SELECT).eq("customer_name", name).maybeSingle()
+  );
 
   if (error) {
     throw new Error(`[customerStore] getCustomerByName: ${error.message}`);
