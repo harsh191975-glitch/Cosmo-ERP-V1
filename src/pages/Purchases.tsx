@@ -7,7 +7,7 @@
  */
 
 import React, { useMemo, useState, useEffect, useCallback } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   getPurchases,
   getPurchasesByCategory,
@@ -436,7 +436,7 @@ interface PurchaseTableProps {
 }
 
 const PurchaseTable = ({ rows, onDeleted, showSupplier = true }: PurchaseTableProps) => {
-  const [viewRow,    setViewRow]    = useState<Purchase | null>(null);
+  const navigate     = useNavigate();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteErr,  setDeleteErr]  = useState<string | null>(null);
   const [sortKey,    setSortKey]    = useState("purchase_date");
@@ -453,7 +453,6 @@ const PurchaseTable = ({ rows, onDeleted, showSupplier = true }: PurchaseTablePr
     setDeleteErr(null);
     try {
       await deletePurchase(row.id);
-      if (viewRow?.id === row.id) setViewRow(null);
       onDeleted();
     } catch (err: any) {
       setDeleteErr(err?.message ?? "Delete failed.");
@@ -499,7 +498,6 @@ const PurchaseTable = ({ rows, onDeleted, showSupplier = true }: PurchaseTablePr
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {deleteErr && <ErrorBanner message={deleteErr} />}
-      {viewRow && <PurchaseDetail row={viewRow} onClose={() => setViewRow(null)} />}
 
       <div style={{ ...premiumCard, padding: 0 }}>
         <div style={{ overflowX: "auto" }}>
@@ -558,8 +556,7 @@ const PurchaseTable = ({ rows, onDeleted, showSupplier = true }: PurchaseTablePr
                       isEven={isEven}
                       isDeleting={isDeleting}
                       showSupplier={showSupplier}
-                      viewRow={viewRow}
-                      onView={() => setViewRow(viewRow?.id === d.id ? null : d)}
+                      onView={() => navigate(`/purchases/${d.id}`)}
                       onDelete={() => handleDelete(d)}
                     />
                   );
@@ -607,13 +604,12 @@ const PurchaseTable = ({ rows, onDeleted, showSupplier = true }: PurchaseTablePr
 
 // ── Table row (extracted for per-row hover state) ───────────────────
 const PurchaseRow = ({
-  d, isEven, isDeleting, showSupplier, viewRow, onView, onDelete,
+  d, isEven, isDeleting, showSupplier, onView, onDelete,
 }: {
   d: Purchase;
   isEven: boolean;
   isDeleting: boolean;
   showSupplier: boolean;
-  viewRow: Purchase | null;
   onView: () => void;
   onDelete: () => void;
 }) => {
@@ -670,7 +666,7 @@ const PurchaseRow = ({
             style={{
               padding: 7,
               borderRadius: 8,
-              background: viewRow?.id === d.id ? "rgba(59,130,246,0.20)" : "transparent",
+              background: "transparent",
               border: "none",
               cursor: "pointer",
               color: TOKEN.textMuted,

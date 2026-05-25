@@ -213,6 +213,36 @@ export async function getPurchaseById(id: string): Promise<Purchase | null> {
   return purchase;
 }
 
+/**
+ * Fetch all line items for a specific purchase directly from the
+ * purchase_line_items table — bypasses the PostgREST FK join that
+ * can silently return [] if the schema cache hasn't resolved the FK.
+ *
+ * Use this alongside getPurchaseById() on the detail page to guarantee
+ * line items are always fetched, regardless of join cache state.
+ */
+export async function getPurchaseLineItems(purchaseId: string): Promise<PurchaseLineItem[]> {
+  console.log("[purchaseStore] getPurchaseLineItems called with purchaseId:", purchaseId);
+
+  const result = await supabase
+    .from("purchase_line_items")
+    .select("*")
+    .eq("purchase_id", purchaseId)
+    .order("id", { ascending: true });
+
+  console.log("[purchaseStore] getPurchaseLineItems raw result:", {
+    status:  result.status,
+    statusText: result.statusText,
+    count:   result.count,
+    data:    result.data,
+    error:   result.error,
+  });
+
+  if (result.error) throw new Error(`getPurchaseLineItems: ${result.error.message}`);
+  return (result.data ?? []) as PurchaseLineItem[];
+}
+
+
 // ── Insert types ──────────────────────────────────────────────────
 
 export interface NewPurchaseLineItem {
