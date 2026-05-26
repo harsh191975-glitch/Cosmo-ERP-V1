@@ -9,6 +9,8 @@ import Customers from "@/pages/Customers";
 import CustomerProfile from "@/pages/CustomerProfile";
 import Purchases from "@/pages/Purchases";
 import PurchaseDetail from "@/pages/PurchaseDetail";
+import Suppliers from "@/pages/Suppliers";
+import SupplierProfile from "@/pages/SupplierProfile";
 import Expenses from "@/pages/Expenses";
 import Reports from "@/pages/Reports";
 import Inventory from "@/pages/Inventory";
@@ -71,6 +73,8 @@ const App = () => {
           <Route path="/customers/:customerName" element={<CustomerProfile />} />
 
           <Route path="/purchases" element={<Purchases />} />
+          <Route path="/purchases/suppliers" element={<Suppliers />} />
+          <Route path="/purchases/suppliers/:id" element={<SupplierProfile />} />
           <Route path="/purchases/raw-materials" element={<Purchases />} />
           <Route path="/purchases/packaging" element={<Purchases />} />
           {/* Must be after static sub-routes to avoid param collision */}

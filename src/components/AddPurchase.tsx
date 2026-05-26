@@ -292,9 +292,10 @@ const SupplierField = ({
 interface AddPurchaseProps {
   onClose: () => void;
   onSaved: () => void;
+  initialSupplierId?: string;
 }
 
-export const AddPurchase = ({ onClose, onSaved }: AddPurchaseProps) => {
+export const AddPurchase = ({ onClose, onSaved, initialSupplierId }: AddPurchaseProps) => {
   // ── Master data ──────────────────────────────────────────────────
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [suppliers,      setSuppliers]      = useState<Supplier[]>([]);
@@ -319,6 +320,15 @@ export const AddPurchase = ({ onClose, onSaved }: AddPurchaseProps) => {
     };
     load();
   }, []);
+
+  useEffect(() => {
+    if (!initialSupplierId || suppliers.length === 0) return;
+    const supplier = suppliers.find((row) => row.id === initialSupplierId);
+    if (!supplier) return;
+    setSupplierId(supplier.id);
+    setSupplierName(supplier.name);
+    setErrors((prev) => ({ ...prev, supplier: "" }));
+  }, [initialSupplierId, suppliers]);
 
   // ── Form state ───────────────────────────────────────────────────
   const [supplierId,   setSupplierId]   = useState("");

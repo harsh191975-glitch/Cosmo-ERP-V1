@@ -6,7 +6,7 @@ import {
   List, FlaskConical, Package, TrendingDown,
   BadgePercent, Star, Users2, Zap, Truck, Layers, MapPin,
   BarChart3, TrendingUp, ShoppingBag, DollarSign, ArrowLeftRight,
-  Warehouse, PackageSearch, ClipboardList, PlusCircle, Bell,
+  Warehouse, PackageSearch, ClipboardList, PlusCircle, Bell, Building2,
   ReceiptText, LogOut,
 } from "lucide-react";
 import { logoutUser } from "@/data/authStore";
@@ -114,6 +114,7 @@ const DashboardSidebar = () => {
           {!collapsed && purchasesOpen && (
             <div className="mt-1 ml-3 pl-3 border-l border-border space-y-1">
               <button onClick={() => navigate("/purchases")} className={subItemClass(location.pathname === "/purchases")}><List className="h-3.5 w-3.5 flex-shrink-0" />All Purchases</button>
+              <button onClick={() => navigate("/purchases/suppliers")} className={subItemClass(location.pathname.startsWith("/purchases/suppliers"))}><Building2 className="h-3.5 w-3.5 flex-shrink-0" />Suppliers</button>
               <button onClick={() => navigate("/purchases/raw-materials")} className={subItemClass(location.pathname === "/purchases/raw-materials")}><FlaskConical className="h-3.5 w-3.5 flex-shrink-0" />Raw Materials</button>
               <button onClick={() => navigate("/purchases/packaging")} className={subItemClass(location.pathname === "/purchases/packaging")}><Package className="h-3.5 w-3.5 flex-shrink-0" />Packaging</button>
             </div>

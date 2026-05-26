@@ -917,52 +917,68 @@ const SupplierCard = ({
 
 // ── All Purchases: supplier cards ───────────────────────────────────
 const AllPurchasesTab = () => {
-  const [selectedSupplier, setSelectedSupplier] = useState<string | null>(null);
-  const [searchTerm,       setSearchTerm]       = useState("");
-  const [showAddPurchase,  setShowAddPurchase]  = useState(false);
-  const [refreshKey,       setRefreshKey]       = useState(0);
+  const [selectedSupplier, setSelectedSupplier] = useState("all");
+  const [selectedMonth, setSelectedMonth] = useState("all");
+  const [selectedYear, setSelectedYear] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showAddPurchase, setShowAddPurchase] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const { rows, loading, error } = usePurchases(refreshKey);
   const refresh = useCallback(() => setRefreshKey(k => k + 1), []);
 
-  const supplierStats = useMemo(() => {
-    const map = new Map<string, {
-      totalSpend: number; orderCount: number; lastDate: string; categories: Set<string>;
-    }>();
-
-    for (const d of rows) {
-      const e = map.get(d.supplier_name) ?? { totalSpend: 0, orderCount: 0, lastDate: "", categories: new Set() };
-      e.totalSpend  += d.total_amount;
-      e.orderCount  += 1;
-      if (d.purchase_date > e.lastDate) e.lastDate = d.purchase_date;
-      e.categories.add(d.category);
-      map.set(d.supplier_name, e);
-    }
-
-    return [...map.entries()]
-      .map(([name, s]) => ({ name, ...s, categories: [...s.categories] }))
-      .sort((a, b) => b.totalSpend - a.totalSpend);
-  }, [rows]);
-
-  const totalSpend   = rows.reduce((s, d) => s + d.total_amount, 0);
-  const totalGST     = rows.reduce((s, d) => s + d.total_gst, 0);
-  const totalTaxable = rows.reduce((s, d) => s + d.taxable_amount, 0);
-  const maxSpend     = supplierStats[0]?.totalSpend ?? 1;
-
-  const filtered = supplierStats.filter(s =>
-    !searchTerm || s.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const suppliers = useMemo(
+    () => [...new Set(rows.map(d => d.supplier_name))].filter(Boolean).sort(),
+    [rows],
+  );
+  const years = useMemo(
+    () => [...new Set(rows.map(d => d.purchase_date.slice(0, 4)))].sort(),
+    [rows],
+  );
+  const categories = useMemo(
+    () => [...new Set(rows.map(d => d.category))].filter(Boolean).sort(),
+    [rows],
   );
 
-  if (selectedSupplier) {
-    return (
-      <SupplierProfile
-        supplier={selectedSupplier}
-        allRows={rows}
-        onBack={() => setSelectedSupplier(null)}
-        onDeleted={refresh}
-      />
-    );
-  }
+  const filtered = useMemo(() => rows.filter((row) => {
+    if (selectedSupplier !== "all" && row.supplier_name !== selectedSupplier) return false;
+    if (selectedMonth !== "all" && row.purchase_date.slice(5, 7) !== selectedMonth) return false;
+    if (selectedYear !== "all" && row.purchase_date.slice(0, 4) !== selectedYear) return false;
+    if (selectedCategory !== "all" && row.category !== selectedCategory) return false;
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      if (
+        !row.invoice_no.toLowerCase().includes(term) &&
+        !row.supplier_name.toLowerCase().includes(term)
+      ) return false;
+    }
+    return true;
+  }), [rows, searchTerm, selectedCategory, selectedMonth, selectedSupplier, selectedYear]);
+
+  const totalSpend = filtered.reduce((s, d) => s + d.total_amount, 0);
+  const totalGST = filtered.reduce((s, d) => s + d.total_gst, 0);
+  const totalTaxable = filtered.reduce((s, d) => s + d.taxable_amount, 0);
+  const avgOrder = filtered.length > 0 ? totalSpend / filtered.length : 0;
+
+  const hasActiveFilters =
+    selectedSupplier !== "all" ||
+    selectedMonth !== "all" ||
+    selectedYear !== "all" ||
+    selectedCategory !== "all" ||
+    !!searchTerm;
+
+  const clearFilters = () => {
+    setSelectedSupplier("all");
+    setSelectedMonth("all");
+    setSelectedYear("all");
+    setSelectedCategory("all");
+    setSearchTerm("");
+  };
+
+  const supplierCount = useMemo(() => {
+    return new Set(filtered.map((row) => row.supplier_id)).size;
+  }, [filtered]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -978,77 +994,101 @@ const AllPurchasesTab = () => {
           <KPI
             label="Total Spend"
             value={fmt(totalSpend)}
-            sub={`${supplierStats.length} supplier${supplierStats.length !== 1 ? "s" : ""}${loading ? " · syncing…" : ""}`}
+            sub={`${supplierCount} supplier${supplierCount !== 1 ? "s" : ""}${loading ? " · syncing…" : ""}`}
             icon={ShoppingCart}
             iconVariant="blue"
           />
-          <KPI label="Taxable Amount" value={fmt(totalTaxable)} sub="excl. GST"              icon={IndianRupee}  iconVariant="green" />
-          <KPI label="GST Paid"       value={fmt(totalGST)}     sub="total input tax credit" icon={Receipt}      iconVariant="amber" accent="text-amber-400" />
-          <KPI label="Total Orders"   value={String(rows.length)} sub="purchase orders"      icon={TrendingDown} iconVariant="blue"  />
+          <KPI label="Taxable Amount" value={fmt(totalTaxable)} sub="excl. GST" icon={IndianRupee} iconVariant="green" />
+          <KPI label="GST Paid" value={fmt(totalGST)} sub="total input tax credit" icon={Receipt} iconVariant="amber" accent="text-amber-400" />
+          <KPI label="Avg. Order" value={fmt(avgOrder)} sub={`${filtered.length} purchase orders`} icon={TrendingDown} iconVariant="blue" />
         </div>
 
         {/* Add Purchase button */}
         <AddPurchaseButton onClick={() => setShowAddPurchase(true)} />
       </div>
 
-      {/* Search */}
-      <div style={{ position: "relative", maxWidth: 280 }}>
-        <Search style={{
-          position: "absolute", left: 10, top: "50%",
-          transform: "translateY(-50%)", width: 13, height: 13, color: TOKEN.textFaint,
-        }} />
-        <input
-          style={{
-            width: "100%",
-            paddingLeft: 30,
-            paddingRight: 12,
-            height: 34,
-            borderRadius: 9,
-            background: "rgba(148,163,184,0.07)",
-            border: "1px solid rgba(148,163,184,0.10)",
-            color: TOKEN.textPrimary,
-            fontSize: 12,
-            outline: "none",
-            boxSizing: "border-box",
-          }}
-          placeholder="Search suppliers…"
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-        />
+      <div style={{ ...premiumCard, padding: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <SlidersHorizontal style={{ width: 13, height: 13, color: TOKEN.textMuted }} />
+            <span style={{ fontSize: 11, fontWeight: 600, color: TOKEN.textMuted, textTransform: "uppercase", letterSpacing: "0.07em" }}>
+              Transaction Filters
+            </span>
+            {hasActiveFilters && (
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: TOKEN.blue, boxShadow: `0 0 6px ${TOKEN.blue}` }} />
+            )}
+          </div>
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              style={{
+                fontSize: 11,
+                color: TOKEN.textMuted,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <X style={{ width: 11, height: 11 }} /> Clear all
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+          <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="All Suppliers" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Suppliers</SelectItem>
+              {suppliers.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="All Categories" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="All Months" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Months</SelectItem>
+              {MONTHS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="All Years" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Years</SelectItem>
+              {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+            </SelectContent>
+          </Select>
+
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+            <Input
+              className="pl-7 h-8 text-xs"
+              placeholder="Search invoice, supplier…"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Supplier grid */}
-      {loading ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              style={{
-                ...premiumCard,
-                height: 148,
-                animation: "pulse 1.5s ease-in-out infinite",
-                animationDelay: `${i * 100}ms`,
-              }}
-            />
-          ))}
-        </div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px,1fr))", gap: 16 }}>
-          {filtered.length === 0 && !error && (
-            <p style={{ fontSize: 13, color: TOKEN.textFaint, gridColumn: "1/-1", textAlign: "center", padding: "32px 0" }}>
-              No suppliers found.
-            </p>
-          )}
-          {filtered.map(s => (
-            <SupplierCard
-              key={s.name}
-              s={s}
-              maxSpend={maxSpend}
-              onClick={() => setSelectedSupplier(s.name)}
-            />
-          ))}
-        </div>
-      )}
+      <div>
+        <p style={{ fontSize: 11, color: TOKEN.textFaint, marginBottom: 10, paddingLeft: 2 }}>
+          Showing <span style={{ fontWeight: 600, color: TOKEN.textPrimary }}>{filtered.length}</span> of{" "}
+          <span style={{ fontWeight: 600, color: TOKEN.textPrimary }}>{rows.length}</span> purchase transactions
+        </p>
+        {loading ? <TableSkeleton /> : <PurchaseTable rows={filtered} onDeleted={refresh} showSupplier />}
+      </div>
     </div>
   );
 };

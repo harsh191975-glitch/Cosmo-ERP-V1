@@ -62,11 +62,43 @@ export interface Supplier {
   created_at: string;
 }
 
+export interface PurchaseSupplierRecord extends Supplier {
+  gstin?: string | null;
+  contact_name?: string | null;
+  mobile?: string | null;
+  email?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  payment_terms?: string | null;
+  notes?: string | null;
+}
+
+export interface PurchaseSupplierInput {
+  name: string;
+  gstin?: string | null;
+  contact_name?: string | null;
+  mobile?: string | null;
+  email?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  payment_terms?: string | null;
+  notes?: string | null;
+}
+
 // ── Raw Supabase row shape ────────────────────────────────────────
 
 interface RawSupplierJoin {
   id: string;
   name: string;
+}
+
+interface RawPurchaseSupplierRow {
+  [key: string]: unknown;
+  id: string;
+  name: string;
+  created_at?: string;
 }
 
 interface RawPurchaseRow {
@@ -136,6 +168,45 @@ function warnIfInconsistent(p: Purchase): void {
       );
     }
   }
+}
+
+function asNullableString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function mapSupplierRow(raw: RawPurchaseSupplierRow): PurchaseSupplierRecord {
+  return {
+    id: raw.id,
+    name: raw.name ?? "",
+    created_at: typeof raw.created_at === "string" ? raw.created_at : "",
+    gstin: asNullableString(raw.gstin),
+    contact_name: asNullableString(raw.contact_name),
+    mobile: asNullableString(raw.mobile),
+    email: asNullableString(raw.email),
+    address: asNullableString(raw.address),
+    city: asNullableString(raw.city),
+    state: asNullableString(raw.state),
+    payment_terms: asNullableString(raw.payment_terms),
+    notes: asNullableString(raw.notes),
+  };
+}
+
+function normalizeSupplierPayload(input: PurchaseSupplierInput) {
+  const name = input.name.trim().replace(/\s+/g, " ");
+  if (!name) throw new Error("Supplier name cannot be empty.");
+
+  return {
+    name,
+    gstin: asNullableString(typeof input.gstin === "string" ? input.gstin.toUpperCase().trim() : input.gstin),
+    contact_name: asNullableString(input.contact_name),
+    mobile: asNullableString(input.mobile),
+    email: asNullableString(input.email),
+    address: asNullableString(input.address),
+    city: asNullableString(input.city),
+    state: asNullableString(input.state),
+    payment_terms: asNullableString(input.payment_terms),
+    notes: asNullableString(input.notes),
+  };
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -542,6 +613,36 @@ export async function getSuppliers(): Promise<Supplier[]> {
 }
 
 /**
+ * Fetch supplier master rows with all available columns from purchase_suppliers.
+ * Optional fields are mapped defensively so the UI can use them when present
+ * without assuming a wider schema than the current tenant has populated.
+ */
+export async function getSupplierRecords(): Promise<PurchaseSupplierRecord[]> {
+  const { data, error } = await supabase
+    .from("purchase_suppliers")
+    .select("*")
+    .order("name", { ascending: true });
+
+  if (error) throw new Error(`getSupplierRecords: ${error.message}`);
+  return ((data ?? []) as RawPurchaseSupplierRow[]).map(mapSupplierRow);
+}
+
+/**
+ * Fetch one supplier master row by canonical purchase_suppliers.id.
+ */
+export async function getSupplierById(id: string): Promise<PurchaseSupplierRecord | null> {
+  const { data, error } = await supabase
+    .from("purchase_suppliers")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw new Error(`getSupplierById: ${error.message}`);
+  if (!data) return null;
+  return mapSupplierRow(data as RawPurchaseSupplierRow);
+}
+
+/**
  * Create a supplier for the authenticated user.
  *
  * Design decisions:
@@ -569,4 +670,41 @@ export async function createSupplier(name: string): Promise<Supplier> {
   if (error) throw error;               // preserve error.code for callers
 
   return data as Supplier;
+}
+
+/**
+ * Create a supplier master row using the existing purchase_suppliers table.
+ * Uses the same table as the quick-add flow, but persists richer fields when present.
+ */
+export async function createSupplierRecord(input: PurchaseSupplierInput): Promise<PurchaseSupplierRecord> {
+  const payload = normalizeSupplierPayload(input);
+
+  const { data, error } = await supabase
+    .from("purchase_suppliers")
+    .insert(payload)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return mapSupplierRow(data as RawPurchaseSupplierRow);
+}
+
+/**
+ * Update an existing purchase_suppliers row in place.
+ */
+export async function updateSupplierRecord(
+  id: string,
+  input: PurchaseSupplierInput,
+): Promise<PurchaseSupplierRecord> {
+  const payload = normalizeSupplierPayload(input);
+
+  const { data, error } = await supabase
+    .from("purchase_suppliers")
+    .update(payload)
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return mapSupplierRow(data as RawPurchaseSupplierRow);
 }
