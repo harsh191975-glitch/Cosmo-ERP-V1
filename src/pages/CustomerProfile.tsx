@@ -118,7 +118,7 @@ body {
 @media print {
   #customer-ledger-print-area {
     width: 100% !important;
-    padding: 1.5mm 1.25mm !important;
+    padding: 2.25mm 2.25mm !important;
     box-sizing: border-box !important;
   }
   #customer-ledger-print-area .customer-ledger-table {
@@ -136,7 +136,7 @@ body {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
-  @page { margin: 2mm; size: A4 portrait; }
+  @page { margin: 3mm; size: A4 portrait; }
 }
 `;
 
