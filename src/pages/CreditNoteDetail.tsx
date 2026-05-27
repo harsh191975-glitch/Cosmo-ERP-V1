@@ -65,10 +65,15 @@ function handlePrint() {
 const CreditNotePrintView = ({ cn, gstin, placeOfSupply }: {
   cn: CreditNote; gstin?: string; placeOfSupply?: string;
 }) => {
-  const taxTotal = cn.cgst + cn.sgst;
-  const rounded  = Math.round(cn.totalAmount);
-  const roundOff = parseFloat((rounded - cn.totalAmount).toFixed(2));
-  const gstRate  = cn.taxableAmount > 0 ? Math.round((cn.cgst / cn.taxableAmount) * 100) : 9;
+  const isInterState = (cn.igst ?? 0) > 0;
+  const taxTotal = isInterState ? cn.igst : (cn.cgst + cn.sgst);
+  const rounded  = cn.totalAmount;
+  const roundOff = cn.roundOff ?? 0;
+  const gstRate  = cn.taxableAmount > 0
+    ? (isInterState
+        ? Math.round((cn.igst / cn.taxableAmount) * 100)
+        : Math.round((cn.cgst / cn.taxableAmount) * 100))
+    : 9;
   const border   = "1px solid #000";
   const td: React.CSSProperties = { border, padding: "3px 5px", fontSize: "11px", verticalAlign: "top", lineHeight: "1.5" };
 
@@ -180,19 +185,29 @@ const CreditNotePrintView = ({ cn, gstin, placeOfSupply }: {
               ))}
             </tr>
           ))}
-          <tr>
-            <td colSpan={7} style={{ border, textAlign: "right", padding: "3px 5px", fontStyle: "italic" }}>CGST</td>
-            <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.cgst)}</td>
-          </tr>
-          <tr>
-            <td colSpan={7} style={{ border, textAlign: "right", padding: "3px 5px", fontStyle: "italic" }}>SGST</td>
-            <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.sgst)}</td>
-          </tr>
+          {/* GST rows — IGST or CGST+SGST based on linked invoice */}
+          {isInterState ? (
+            <tr>
+              <td colSpan={7} style={{ border, textAlign: "right", padding: "3px 5px", fontStyle: "italic" }}>IGST</td>
+              <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.igst)}</td>
+            </tr>
+          ) : (
+            <>
+              <tr>
+                <td colSpan={7} style={{ border, textAlign: "right", padding: "3px 5px", fontStyle: "italic" }}>CGST</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.cgst)}</td>
+              </tr>
+              <tr>
+                <td colSpan={7} style={{ border, textAlign: "right", padding: "3px 5px", fontStyle: "italic" }}>SGST</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.sgst)}</td>
+              </tr>
+            </>
+          )}
           {Math.abs(roundOff) >= 0.01 && (
             <tr>
-              <td colSpan={6} style={{ border, textAlign: "right", padding: "3px 5px", fontSize: "10px", fontStyle: "italic" }}>Less :</td>
+              <td colSpan={6} style={{ border, textAlign: "right", padding: "3px 5px", fontSize: "10px", fontStyle: "italic" }}>{roundOff > 0 ? "Add :" : "Less :"}</td>
               <td colSpan={1} style={{ border, textAlign: "right", padding: "3px 5px", fontSize: "10px", fontStyle: "italic" }}>ROUND OFF</td>
-              <td style={{ ...td, textAlign: "right" }}>(-){Math.abs(roundOff).toFixed(2)}</td>
+              <td style={{ ...td, textAlign: "right" }}>{roundOff > 0 ? "+" : "(-)"}{ Math.abs(roundOff).toFixed(2)}</td>
             </tr>
           )}
           <tr>
@@ -218,44 +233,86 @@ const CreditNotePrintView = ({ cn, gstin, placeOfSupply }: {
         </tbody>
       </table>
 
+      {/* HSN/GST summary — conditionally IGST or CGST+SGST */}
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
-          <tr>
-            <th style={{ ...td, fontWeight: "bold", textAlign: "left" }}>HSN/SAC</th>
-            <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Total Taxable<br />Value</th>
-            <th style={{ ...td, fontWeight: "bold", textAlign: "center" }} colSpan={2}>CGST</th>
-            <th style={{ ...td, fontWeight: "bold", textAlign: "center" }} colSpan={2}>SGST/UTGST</th>
-            <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Total Tax Amount</th>
-          </tr>
-          <tr>
-            <th style={{ ...td, fontWeight: "bold" }}></th>
-            <th style={{ ...td, fontWeight: "bold" }}></th>
-            <th style={{ ...td, fontWeight: "bold", textAlign: "center" }}>Rate</th>
-            <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Amount</th>
-            <th style={{ ...td, fontWeight: "bold", textAlign: "center" }}>Rate</th>
-            <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Amount</th>
-            <th style={{ ...td, fontWeight: "bold" }}></th>
-          </tr>
+          {isInterState ? (
+            <>
+              <tr>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "left" }}>HSN/SAC</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Total Taxable<br />Value</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "center" }} colSpan={2}>Integrated Tax</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Total Tax Amount</th>
+              </tr>
+              <tr>
+                <th style={{ ...td, fontWeight: "bold" }}></th>
+                <th style={{ ...td, fontWeight: "bold" }}></th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "center" }}>Rate</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Amount</th>
+                <th style={{ ...td, fontWeight: "bold" }}></th>
+              </tr>
+            </>
+          ) : (
+            <>
+              <tr>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "left" }}>HSN/SAC</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Total Taxable<br />Value</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "center" }} colSpan={2}>CGST</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "center" }} colSpan={2}>SGST/UTGST</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Total Tax Amount</th>
+              </tr>
+              <tr>
+                <th style={{ ...td, fontWeight: "bold" }}></th>
+                <th style={{ ...td, fontWeight: "bold" }}></th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "center" }}>Rate</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Amount</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "center" }}>Rate</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Amount</th>
+                <th style={{ ...td, fontWeight: "bold" }}></th>
+              </tr>
+            </>
+          )}
         </thead>
         <tbody>
-          <tr>
-            <td style={td}>997113</td>
-            <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.taxableAmount)}</td>
-            <td style={{ ...td, textAlign: "center" }}>{gstRate}%</td>
-            <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.cgst)}</td>
-            <td style={{ ...td, textAlign: "center" }}>{gstRate}%</td>
-            <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.sgst)}</td>
-            <td style={{ ...td, textAlign: "right" }}>{fmtNum(taxTotal)}</td>
-          </tr>
-          <tr>
-            <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Total</td>
-            <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(cn.taxableAmount)}</td>
-            <td style={{ border }}></td>
-            <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(cn.cgst)}</td>
-            <td style={{ border }}></td>
-            <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(cn.sgst)}</td>
-            <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(taxTotal)}</td>
-          </tr>
+          {isInterState ? (
+            <>
+              <tr>
+                <td style={td}>997113</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.taxableAmount)}</td>
+                <td style={{ ...td, textAlign: "center" }}>{gstRate}%</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.igst)}</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmtNum(taxTotal)}</td>
+              </tr>
+              <tr>
+                <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Total</td>
+                <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(cn.taxableAmount)}</td>
+                <td style={{ border }}></td>
+                <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(cn.igst)}</td>
+                <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(taxTotal)}</td>
+              </tr>
+            </>
+          ) : (
+            <>
+              <tr>
+                <td style={td}>997113</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.taxableAmount)}</td>
+                <td style={{ ...td, textAlign: "center" }}>{gstRate}%</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.cgst)}</td>
+                <td style={{ ...td, textAlign: "center" }}>{gstRate}%</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.sgst)}</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmtNum(taxTotal)}</td>
+              </tr>
+              <tr>
+                <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Total</td>
+                <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(cn.taxableAmount)}</td>
+                <td style={{ border }}></td>
+                <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(cn.cgst)}</td>
+                <td style={{ border }}></td>
+                <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(cn.sgst)}</td>
+                <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(taxTotal)}</td>
+              </tr>
+            </>
+          )}
         </tbody>
       </table>
 
@@ -349,7 +406,8 @@ const CreditNoteDetail = () => {
   );
 
   const reasonCls = REASON_COLORS[cn.reason] ?? REASON_COLORS["Other"];
-  const taxTotal  = cn.cgst + cn.sgst;
+  const isInterState = (cn.igst ?? 0) > 0;
+  const taxTotal  = isInterState ? cn.igst : (cn.cgst + cn.sgst);
 
   return (
     <div className="space-y-5">
@@ -504,14 +562,29 @@ const CreditNoteDetail = () => {
               <span className="text-muted-foreground">Taxable Amount</span>
               <span className="tabular-nums font-medium">{fmt(cn.taxableAmount)}</span>
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">CGST @ {cn.taxableAmount > 0 ? Math.round((cn.cgst / cn.taxableAmount) * 100) : 9}%</span>
-              <span className="tabular-nums font-medium text-amber-400">{fmt(cn.cgst)}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">SGST @ {cn.taxableAmount > 0 ? Math.round((cn.sgst / cn.taxableAmount) * 100) : 9}%</span>
-              <span className="tabular-nums font-medium text-amber-400">{fmt(cn.sgst)}</span>
-            </div>
+            {isInterState ? (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">IGST @ {cn.taxableAmount > 0 ? Math.round((cn.igst / cn.taxableAmount) * 100) : 18}%</span>
+                <span className="tabular-nums font-medium text-amber-400">{fmt(cn.igst)}</span>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">CGST @ {cn.taxableAmount > 0 ? Math.round((cn.cgst / cn.taxableAmount) * 100) : 9}%</span>
+                  <span className="tabular-nums font-medium text-amber-400">{fmt(cn.cgst)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">SGST @ {cn.taxableAmount > 0 ? Math.round((cn.sgst / cn.taxableAmount) * 100) : 9}%</span>
+                  <span className="tabular-nums font-medium text-amber-400">{fmt(cn.sgst)}</span>
+                </div>
+              </>
+            )}
+            {(cn.roundOff ?? 0) !== 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Round Off</span>
+                <span className="tabular-nums text-muted-foreground">{cn.roundOff > 0 ? "+" : "−"}₹{Math.abs(cn.roundOff).toFixed(2)}</span>
+              </div>
+            )}
             <div className="border-t border-border pt-3 flex items-center justify-between">
               <span className="font-bold">Total Credit Note</span>
               <span className="font-bold text-lg tabular-nums text-purple-400">{fmt(cn.totalAmount)}</span>

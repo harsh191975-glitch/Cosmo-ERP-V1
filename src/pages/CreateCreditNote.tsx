@@ -77,11 +77,16 @@ interface PrintCNProps {
 }
 
 const CreditNotePrintView = ({ cn, invoice }: PrintCNProps) => {
-  const taxTotal  = cn.cgst + cn.sgst;
-  const rawTotal  = cn.totalAmount;
-  const rounded   = Math.round(rawTotal);
-  const roundOff  = parseFloat((rounded - rawTotal).toFixed(2));
-  const gstRate   = cn.taxableAmount > 0 ? Math.round((cn.cgst / cn.taxableAmount) * 100) : 9;
+  const isInterState = (cn.igst ?? 0) > 0;
+  const taxTotal  = isInterState ? cn.igst : (cn.cgst + cn.sgst);
+  const roundOff  = cn.roundOff ?? 0;
+  const rounded   = cn.totalAmount;
+  const gstRate   = cn.taxableAmount > 0
+    ? (isInterState
+        ? Math.round((cn.igst / cn.taxableAmount) * 100)
+        : Math.round((cn.cgst / cn.taxableAmount) * 100))
+    : 9;
+  const cgstRate  = gstRate; // half-rate label for intra-state
   const cell      = (extra?: React.CSSProperties): React.CSSProperties => ({
     border: "1px solid #000", padding: "3px 5px", ...extra,
   });
@@ -180,21 +185,29 @@ const CreditNotePrintView = ({ cn, invoice }: PrintCNProps) => {
               ))}
             </tr>
           ))}
-          {/* CGST */}
-          <tr>
-            <td colSpan={7} style={cell({ textAlign: "right" })}>CGST</td>
-            <td style={cell({ textAlign: "right" })}>{cn.cgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-          </tr>
-          {/* SGST */}
-          <tr>
-            <td colSpan={7} style={cell({ textAlign: "right" })}>SGST</td>
-            <td style={cell({ textAlign: "right" })}>{cn.sgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-          </tr>
+          {/* GST rows — IGST or CGST+SGST based on linked invoice */}
+          {isInterState ? (
+            <tr>
+              <td colSpan={7} style={cell({ textAlign: "right" })}>IGST</td>
+              <td style={cell({ textAlign: "right" })}>{cn.igst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+            </tr>
+          ) : (
+            <>
+              <tr>
+                <td colSpan={7} style={cell({ textAlign: "right" })}>CGST</td>
+                <td style={cell({ textAlign: "right" })}>{cn.cgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+              </tr>
+              <tr>
+                <td colSpan={7} style={cell({ textAlign: "right" })}>SGST</td>
+                <td style={cell({ textAlign: "right" })}>{cn.sgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+              </tr>
+            </>
+          )}
           {/* Round off */}
           {Math.abs(roundOff) >= 0.01 && (
             <tr>
-              <td colSpan={7} style={cell({ textAlign: "right" })}>Less: Round Off (-)</td>
-              <td style={cell({ textAlign: "right" })}>{Math.abs(roundOff).toFixed(2)}</td>
+              <td colSpan={7} style={cell({ textAlign: "right" })}>{roundOff > 0 ? "Add" : "Less"}: Round Off</td>
+              <td style={cell({ textAlign: "right" })}>{roundOff > 0 ? "+" : "(-)"}{Math.abs(roundOff).toFixed(2)}</td>
             </tr>
           )}
           {/* Total */}
@@ -225,42 +238,76 @@ const CreditNotePrintView = ({ cn, invoice }: PrintCNProps) => {
       {/* HSN/GST summary */}
       <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "5px" }}>
         <thead>
-          <tr style={{ background: "#f0f0f0" }}>
-            <th style={cell({ textAlign: "left" })}>HSN/SAC</th>
-            <th style={cell({ textAlign: "right" })}>Total Taxable Value</th>
-            <th colSpan={2} style={cell({ textAlign: "center" })}>CGST</th>
-            <th colSpan={2} style={cell({ textAlign: "center" })}>SGST/UTGST</th>
-            <th style={cell({ textAlign: "right" })}>Total Tax Amount</th>
-          </tr>
+          {isInterState ? (
+            <tr style={{ background: "#f0f0f0" }}>
+              <th style={cell({ textAlign: "left" })}>HSN/SAC</th>
+              <th style={cell({ textAlign: "right" })}>Total Taxable Value</th>
+              <th colSpan={2} style={cell({ textAlign: "center" })}>Integrated Tax</th>
+              <th style={cell({ textAlign: "right" })}>Total Tax Amount</th>
+            </tr>
+          ) : (
+            <tr style={{ background: "#f0f0f0" }}>
+              <th style={cell({ textAlign: "left" })}>HSN/SAC</th>
+              <th style={cell({ textAlign: "right" })}>Total Taxable Value</th>
+              <th colSpan={2} style={cell({ textAlign: "center" })}>CGST</th>
+              <th colSpan={2} style={cell({ textAlign: "center" })}>SGST/UTGST</th>
+              <th style={cell({ textAlign: "right" })}>Total Tax Amount</th>
+            </tr>
+          )}
           <tr style={{ background: "#f0f0f0", fontSize: "10px" }}>
             <th style={cell()}></th>
             <th style={cell()}></th>
             <th style={cell({ textAlign: "center" })}>Rate</th>
             <th style={cell({ textAlign: "right" })}>Amount</th>
-            <th style={cell({ textAlign: "center" })}>Rate</th>
-            <th style={cell({ textAlign: "right" })}>Amount</th>
+            {!isInterState && (
+              <>
+                <th style={cell({ textAlign: "center" })}>Rate</th>
+                <th style={cell({ textAlign: "right" })}>Amount</th>
+              </>
+            )}
             <th style={cell()}></th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td style={cell()}>997113</td>
-            <td style={cell({ textAlign: "right" })}>{cn.taxableAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-            <td style={cell({ textAlign: "center" })}>{gstRate}%</td>
-            <td style={cell({ textAlign: "right" })}>{cn.cgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-            <td style={cell({ textAlign: "center" })}>{gstRate}%</td>
-            <td style={cell({ textAlign: "right" })}>{cn.sgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-            <td style={cell({ textAlign: "right" })}>{taxTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-          </tr>
-          <tr style={{ fontWeight: "bold", background: "#f0f0f0" }}>
-            <td style={cell()}>Total</td>
-            <td style={cell({ textAlign: "right" })}>{cn.taxableAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-            <td style={cell()}></td>
-            <td style={cell({ textAlign: "right" })}>{cn.cgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-            <td style={cell()}></td>
-            <td style={cell({ textAlign: "right" })}>{cn.sgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-            <td style={cell({ textAlign: "right" })}>{taxTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-          </tr>
+          {isInterState ? (
+            <>
+              <tr>
+                <td style={cell()}>997113</td>
+                <td style={cell({ textAlign: "right" })}>{cn.taxableAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                <td style={cell({ textAlign: "center" })}>{gstRate}%</td>
+                <td style={cell({ textAlign: "right" })}>{cn.igst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                <td style={cell({ textAlign: "right" })}>{taxTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+              </tr>
+              <tr style={{ fontWeight: "bold", background: "#f0f0f0" }}>
+                <td style={cell()}>Total</td>
+                <td style={cell({ textAlign: "right" })}>{cn.taxableAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                <td style={cell()}></td>
+                <td style={cell({ textAlign: "right" })}>{cn.igst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                <td style={cell({ textAlign: "right" })}>{taxTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+              </tr>
+            </>
+          ) : (
+            <>
+              <tr>
+                <td style={cell()}>997113</td>
+                <td style={cell({ textAlign: "right" })}>{cn.taxableAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                <td style={cell({ textAlign: "center" })}>{cgstRate}%</td>
+                <td style={cell({ textAlign: "right" })}>{cn.cgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                <td style={cell({ textAlign: "center" })}>{cgstRate}%</td>
+                <td style={cell({ textAlign: "right" })}>{cn.sgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                <td style={cell({ textAlign: "right" })}>{taxTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+              </tr>
+              <tr style={{ fontWeight: "bold", background: "#f0f0f0" }}>
+                <td style={cell()}>Total</td>
+                <td style={cell({ textAlign: "right" })}>{cn.taxableAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                <td style={cell()}></td>
+                <td style={cell({ textAlign: "right" })}>{cn.cgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                <td style={cell()}></td>
+                <td style={cell({ textAlign: "right" })}>{cn.sgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                <td style={cell({ textAlign: "right" })}>{taxTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+              </tr>
+            </>
+          )}
         </tbody>
       </table>
 
@@ -404,9 +451,15 @@ const CreateCreditNote = () => {
   const remainingBalance = invoiceStats?.outstanding ?? 0;
   const taxableAmount    = lineItems.reduce((s, li) => s + li.lineAmount, 0);
   const gstRate          = selectedInvoice?.gstRate ?? 18;
-  const cgst             = taxableAmount * (gstRate / 2 / 100);
-  const sgst             = taxableAmount * (gstRate / 2 / 100);
-  const totalAmount      = taxableAmount + cgst + sgst;
+  // Inherit GST structure from linked invoice: inter-state → IGST, intra-state → CGST+SGST
+  const isInterState     = (selectedInvoice?.igst ?? 0) > 0;
+  const totalGst         = parseFloat((taxableAmount * gstRate / 100).toFixed(2));
+  const igst             = isInterState ? totalGst : 0;
+  const cgst             = isInterState ? 0 : parseFloat((totalGst / 2).toFixed(2));
+  const sgst             = isInterState ? 0 : parseFloat((totalGst / 2).toFixed(2));
+  const rawTotal         = taxableAmount + totalGst;
+  const roundOff         = parseFloat((Math.round(rawTotal) - rawTotal).toFixed(2));
+  const totalAmount      = parseFloat((rawTotal + roundOff).toFixed(2));
 
   const hasLineItems   = lineItems.some(li => li.lineAmount > 0);
   const exceedsBalance = totalAmount > remainingBalance + 0.01;
@@ -446,6 +499,8 @@ const CreateCreditNote = () => {
         taxableAmount: parseFloat(taxableAmount.toFixed(2)),
         cgst: parseFloat(cgst.toFixed(2)),
         sgst: parseFloat(sgst.toFixed(2)),
+        igst: parseFloat(igst.toFixed(2)),
+        roundOff: parseFloat(roundOff.toFixed(2)),
         totalAmount: parseFloat(totalAmount.toFixed(2)),
         notes: notes || undefined,
       });
@@ -467,6 +522,8 @@ const CreateCreditNote = () => {
     taxableAmount: parseFloat(taxableAmount.toFixed(2)),
     cgst: parseFloat(cgst.toFixed(2)),
     sgst: parseFloat(sgst.toFixed(2)),
+    igst: parseFloat(igst.toFixed(2)),
+    roundOff: parseFloat(roundOff.toFixed(2)),
     totalAmount: parseFloat(totalAmount.toFixed(2)),
     notes, createdAt: new Date().toISOString(),
   };
@@ -695,14 +752,29 @@ const CreateCreditNote = () => {
                 <span className="text-muted-foreground">Taxable Amount</span>
                 <span className="tabular-nums font-medium">{fmt(taxableAmount)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">CGST @ {gstRate / 2}%</span>
-                <span className="tabular-nums text-amber-400">{fmt(cgst)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">SGST @ {gstRate / 2}%</span>
-                <span className="tabular-nums text-amber-400">{fmt(sgst)}</span>
-              </div>
+              {isInterState ? (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">IGST @ {gstRate}%</span>
+                  <span className="tabular-nums text-amber-400">{fmt(igst)}</span>
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">CGST @ {gstRate / 2}%</span>
+                    <span className="tabular-nums text-amber-400">{fmt(cgst)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">SGST @ {gstRate / 2}%</span>
+                    <span className="tabular-nums text-amber-400">{fmt(sgst)}</span>
+                  </div>
+                </>
+              )}
+              {roundOff !== 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Round Off</span>
+                  <span className="tabular-nums text-muted-foreground">{roundOff > 0 ? "+" : "−"}₹{Math.abs(roundOff).toFixed(2)}</span>
+                </div>
+              )}
               <div className="border-t border-border pt-2.5 flex justify-between font-bold">
                 <span>Credit Note Total</span>
                 <span className={`tabular-nums text-lg ${exceedsBalance ? "text-red-400" : "text-purple-400"}`}>

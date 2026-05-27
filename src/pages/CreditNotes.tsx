@@ -82,10 +82,15 @@ function injectPrintStyles() {
 const CreditNotePrintView = ({ cn, customerGstin, customerPlace }: {
   cn: CreditNote; customerGstin?: string; customerPlace?: string;
 }) => {
-  const taxTotal = cn.cgst + cn.sgst;
+  const isInterState = (cn.igst ?? 0) > 0;
+  const taxTotal = isInterState ? cn.igst : (cn.cgst + cn.sgst);
   const rounded  = Math.round(cn.totalAmount);
   const roundOff = parseFloat((rounded - cn.totalAmount).toFixed(2));
-  const gstRate  = cn.taxableAmount > 0 ? Math.round((cn.cgst / cn.taxableAmount) * 100) : 9;
+  const gstRate  = cn.taxableAmount > 0
+    ? (isInterState
+        ? Math.round((cn.igst / cn.taxableAmount) * 100)
+        : Math.round((cn.cgst / cn.taxableAmount) * 100))
+    : 9;
   const border   = "1px solid #000";
   const td: React.CSSProperties = { border, padding: "3px 5px", fontSize: "11px", verticalAlign: "top", lineHeight: "1.5" };
 
@@ -202,14 +207,23 @@ const CreditNotePrintView = ({ cn, customerGstin, customerPlace }: {
               ))}
             </tr>
           ))}
-          <tr>
-            <td colSpan={7} style={{ border, textAlign: "right", padding: "3px 5px", fontSize: "11px", fontStyle: "italic" }}>CGST</td>
-            <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.cgst)}</td>
-          </tr>
-          <tr>
-            <td colSpan={7} style={{ border, textAlign: "right", padding: "3px 5px", fontSize: "11px", fontStyle: "italic" }}>SGST</td>
-            <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.sgst)}</td>
-          </tr>
+          {isInterState ? (
+            <tr>
+              <td colSpan={7} style={{ border, textAlign: "right", padding: "3px 5px", fontSize: "11px", fontStyle: "italic" }}>IGST</td>
+              <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.igst)}</td>
+            </tr>
+          ) : (
+            <>
+              <tr>
+                <td colSpan={7} style={{ border, textAlign: "right", padding: "3px 5px", fontSize: "11px", fontStyle: "italic" }}>CGST</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.cgst)}</td>
+              </tr>
+              <tr>
+                <td colSpan={7} style={{ border, textAlign: "right", padding: "3px 5px", fontSize: "11px", fontStyle: "italic" }}>SGST</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.sgst)}</td>
+              </tr>
+            </>
+          )}
           {Math.abs(roundOff) >= 0.01 && (
             <tr>
               <td colSpan={6} style={{ border, textAlign: "right", padding: "3px 5px", fontSize: "10px", fontStyle: "italic" }}>Less :</td>
@@ -244,42 +258,83 @@ const CreditNotePrintView = ({ cn, customerGstin, customerPlace }: {
       {/* HSN/GST summary */}
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
-          <tr>
-            <th style={{ ...td, fontWeight: "bold", textAlign: "left" }}>HSN/SAC</th>
-            <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Total Taxable<br />Value</th>
-            <th style={{ ...td, fontWeight: "bold", textAlign: "center" }} colSpan={2}>CGST</th>
-            <th style={{ ...td, fontWeight: "bold", textAlign: "center" }} colSpan={2}>SGST/UTGST</th>
-            <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Total Tax Amount</th>
-          </tr>
-          <tr>
-            <th style={{ ...td, fontWeight: "bold" }}></th>
-            <th style={{ ...td, fontWeight: "bold" }}></th>
-            <th style={{ ...td, fontWeight: "bold", textAlign: "center" }}>Rate</th>
-            <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Amount</th>
-            <th style={{ ...td, fontWeight: "bold", textAlign: "center" }}>Rate</th>
-            <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Amount</th>
-            <th style={{ ...td, fontWeight: "bold" }}></th>
-          </tr>
+          {isInterState ? (
+            <>
+              <tr>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "left" }}>HSN/SAC</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Total Taxable<br />Value</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "center" }} colSpan={2}>Integrated Tax</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Total Tax Amount</th>
+              </tr>
+              <tr>
+                <th style={{ ...td, fontWeight: "bold" }}></th>
+                <th style={{ ...td, fontWeight: "bold" }}></th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "center" }}>Rate</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Amount</th>
+                <th style={{ ...td, fontWeight: "bold" }}></th>
+              </tr>
+            </>
+          ) : (
+            <>
+              <tr>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "left" }}>HSN/SAC</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Total Taxable<br />Value</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "center" }} colSpan={2}>CGST</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "center" }} colSpan={2}>SGST/UTGST</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Total Tax Amount</th>
+              </tr>
+              <tr>
+                <th style={{ ...td, fontWeight: "bold" }}></th>
+                <th style={{ ...td, fontWeight: "bold" }}></th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "center" }}>Rate</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Amount</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "center" }}>Rate</th>
+                <th style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Amount</th>
+                <th style={{ ...td, fontWeight: "bold" }}></th>
+              </tr>
+            </>
+          )}
         </thead>
         <tbody>
-          <tr>
-            <td style={td}>997113</td>
-            <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.taxableAmount)}</td>
-            <td style={{ ...td, textAlign: "center" }}>{gstRate}%</td>
-            <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.cgst)}</td>
-            <td style={{ ...td, textAlign: "center" }}>{gstRate}%</td>
-            <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.sgst)}</td>
-            <td style={{ ...td, textAlign: "right" }}>{fmtNum(taxTotal)}</td>
-          </tr>
-          <tr>
-            <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Total</td>
-            <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(cn.taxableAmount)}</td>
-            <td style={{ border }}></td>
-            <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(cn.cgst)}</td>
-            <td style={{ border }}></td>
-            <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(cn.sgst)}</td>
-            <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(taxTotal)}</td>
-          </tr>
+          {isInterState ? (
+            <>
+              <tr>
+                <td style={td}>997113</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.taxableAmount)}</td>
+                <td style={{ ...td, textAlign: "center" }}>{gstRate}%</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.igst)}</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmtNum(taxTotal)}</td>
+              </tr>
+              <tr>
+                <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Total</td>
+                <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(cn.taxableAmount)}</td>
+                <td style={{ border }}></td>
+                <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(cn.igst)}</td>
+                <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(taxTotal)}</td>
+              </tr>
+            </>
+          ) : (
+            <>
+              <tr>
+                <td style={td}>997113</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.taxableAmount)}</td>
+                <td style={{ ...td, textAlign: "center" }}>{gstRate}%</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.cgst)}</td>
+                <td style={{ ...td, textAlign: "center" }}>{gstRate}%</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmtNum(cn.sgst)}</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmtNum(taxTotal)}</td>
+              </tr>
+              <tr>
+                <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>Total</td>
+                <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(cn.taxableAmount)}</td>
+                <td style={{ border }}></td>
+                <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(cn.cgst)}</td>
+                <td style={{ border }}></td>
+                <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(cn.sgst)}</td>
+                <td style={{ ...td, fontWeight: "bold", textAlign: "right" }}>{fmtNum(taxTotal)}</td>
+              </tr>
+            </>
+          )}
         </tbody>
       </table>
 
@@ -627,7 +682,7 @@ const CreditNotesTab = () => {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums text-sm">{fmt(cn.taxableAmount)}</td>
-                        <td className="px-4 py-3 text-right tabular-nums text-xs text-amber-400">{fmt(cn.cgst + cn.sgst)}</td>
+                        <td className="px-4 py-3 text-right tabular-nums text-xs text-amber-400">{fmt((cn.cgst || 0) + (cn.sgst || 0) + (cn.igst || 0))}</td>
                         <td className="px-4 py-3 text-right tabular-nums font-semibold text-red-400">{fmt(cn.totalAmount)}</td>
 
                         {/* Hover actions — eye expands row, trash deletes */}
@@ -659,8 +714,12 @@ const CreditNotesTab = () => {
                               {[
                                 ["CN Number",      <span className="font-mono text-xs">{cn.creditNoteNumber}</span>],
                                 ["Taxable Amount", <span className="font-semibold">{fmt(cn.taxableAmount)}</span>],
-                                ["CGST",           <span className="font-semibold text-amber-400">{fmt(cn.cgst)}</span>],
-                                ["SGST",           <span className="font-semibold text-amber-400">{fmt(cn.sgst)}</span>],
+                                ...((cn.igst || 0) > 0 ? [
+                                  ["IGST", <span className="font-semibold text-amber-400">{fmt(cn.igst)}</span>] as const,
+                                ] : [
+                                  ["CGST", <span className="font-semibold text-amber-400">{fmt(cn.cgst)}</span>] as const,
+                                  ["SGST", <span className="font-semibold text-amber-400">{fmt(cn.sgst)}</span>] as const,
+                                ]),
                                 ["Total Amount",   <span className="font-semibold text-red-400">{fmt(cn.totalAmount)}</span>],
                               ].map(([label, val], i) => (
                                 <div key={i} className="rounded-lg bg-muted/30 border border-border/40 px-3 py-2.5">
@@ -744,7 +803,7 @@ const CreditNotesTab = () => {
                     {fmt(filtered.reduce((s, cn) => s + cn.taxableAmount, 0))}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums font-bold text-sm text-amber-400">
-                    {fmt(filtered.reduce((s, cn) => s + cn.cgst + cn.sgst, 0))}
+                    {fmt(filtered.reduce((s, cn) => s + (cn.cgst || 0) + (cn.sgst || 0) + (cn.igst || 0), 0))}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums font-bold text-sm text-red-400">
                     {fmt(filteredAmt)}

@@ -90,10 +90,7 @@ const isValidItemCategory = (category: string): category is ItemCategory =>
 async function requireUserId(): Promise<string> {
   const userId = await getCurrentUserId();
   if (!userId) {
-    throw new Error(
-      "[inventoryStore] No authenticated session. " +
-      "The user must be logged in before writing inventory data."
-    );
+    throw new Error("Authenticated user not found");
   }
   return userId;
 }

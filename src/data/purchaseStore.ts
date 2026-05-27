@@ -478,21 +478,27 @@ export async function createPurchaseWithRpc(
   if (!input.p_date)                throw new Error("Purchase date is required.");
   if (input.p_line_items.length === 0) throw new Error("At least one line item is required.");
 
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) {
+    throw new Error("Authenticated user not found");
+  }
+
   const { data, error } = await supabase.rpc("create_purchase_with_items", {
+    p_user_id:     user.id,
     p_supplier_id: input.p_supplier_id,
     p_invoice_no:  input.p_invoice_no,
     p_date:        input.p_date,
     p_category:    input.p_category,
+    p_source:      "manual",           // hardcoded — not a UI concern
     p_freight:     input.p_freight,
-    p_notes:       input.p_notes,
-    p_line_items:  input.p_line_items,
+    p_notes:       input.p_notes ?? "",
+    p_items:       input.p_line_items, // RPC param is p_items
   });
 
   if (error) throw new Error(`createPurchaseWithRpc: ${error.message}`);
 
-  // RPC returns the new purchase id — re-fetch with full relational join
-  const raw = data as { id: string } | string;
-  const id  = typeof raw === "string" ? raw : raw.id;
+  // RPC returns the new purchase UUID as a plain string — re-fetch with full relational join
+  const id = data as string;
 
   const result = await getPurchaseById(id);
   if (!result) throw new Error("createPurchaseWithRpc: could not fetch purchase after insert");

@@ -46,6 +46,8 @@ export interface CreditNote {
   taxableAmount:    number;
   cgst:             number;
   sgst:             number;
+  igst:             number;  // > 0 for inter-state (linked invoice uses IGST)
+  roundOff:         number;  // rounding to nearest rupee, mirroring invoice engine
   totalAmount:      number;
   notes?:           string;
   createdAt:        string;
@@ -60,6 +62,8 @@ export interface NewCreditNote {
   taxableAmount: number;
   cgst:          number;
   sgst:          number;
+  igst:          number;
+  roundOff:      number;
   totalAmount:   number;
   notes?:        string;
 }
@@ -92,6 +96,8 @@ function rowToCreditNote(row: any): CreditNote {
     taxableAmount:    Number(row.taxable_amount ?? 0),
     cgst:             Number(row.cgst           ?? 0),
     sgst:             Number(row.sgst           ?? 0),
+    igst:             Number(row.igst           ?? 0),
+    roundOff:         Number(row.round_off      ?? 0),
     totalAmount:      Number(row.total_amount   ?? 0),
     notes:            row.notes ?? undefined,
     createdAt:        row.created_at,
@@ -220,6 +226,8 @@ export async function saveCreditNote(input: NewCreditNote): Promise<CreditNote> 
       taxable_amount:     input.taxableAmount,
       cgst:               input.cgst,
       sgst:               input.sgst,
+      igst:               input.igst,
+      round_off:          input.roundOff,
       total_amount:       input.totalAmount,
       notes:              input.notes || null,
     })
