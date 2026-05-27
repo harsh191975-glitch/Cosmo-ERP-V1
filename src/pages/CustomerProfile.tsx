@@ -100,20 +100,43 @@ interface LedgerRow {
 }
 
 const LEDGER_PRINT_STYLES = `
+@media screen {
+  .customer-ledger-print-only { display: none !important; }
+}
+
+body {
+  margin: 0;
+  background: white;
+}
+
+#customer-ledger-print-area {
+  width: 100%;
+  background: white;
+  box-sizing: border-box;
+}
+
 @media print {
-  body * { visibility: hidden !important; }
-  #customer-ledger-print-area,
-  #customer-ledger-print-area * { visibility: visible !important; }
   #customer-ledger-print-area {
-    position: fixed !important;
-    left: 0 !important;
-    top: 0 !important;
     width: 100% !important;
-    min-height: 100vh !important;
-    background: white !important;
-    padding: 10mm !important;
+    padding: 1.5mm 1.25mm !important;
+    box-sizing: border-box !important;
   }
-  @page { margin: 0; size: A4 portrait; }
+  #customer-ledger-print-area .customer-ledger-table {
+    width: 100% !important;
+  }
+  #customer-ledger-print-area .customer-ledger-page {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+  #customer-ledger-print-area .customer-ledger-page:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+  #customer-ledger-print-area tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  @page { margin: 2mm; size: A4 portrait; }
 }
 `;
 
@@ -394,23 +417,113 @@ const LedgerPrintView = ({
   const border = "1px solid #111827";
   const headerCell: React.CSSProperties = {
     border,
-    padding: "8px 10px",
-    fontSize: "10px",
+    padding: "10px 10px",
+    fontSize: "10.25px",
     fontWeight: 700,
     textTransform: "uppercase",
     letterSpacing: "0.04em",
     background: "#eef2ff",
+    textAlign: "left",
+    verticalAlign: "middle",
   };
   const bodyCell: React.CSSProperties = {
     border,
-    padding: "7px 10px",
-    fontSize: "10px",
-    verticalAlign: "top",
-    lineHeight: 1.45,
+    padding: "11px 10px",
+    fontSize: "10.4px",
+    verticalAlign: "middle",
+    lineHeight: 1.56,
+    fontVariantNumeric: "tabular-nums",
+    wordBreak: "break-word",
+    overflowWrap: "anywhere",
+  };
+  const numericBodyCell: React.CSSProperties = {
+    ...bodyCell,
+    textAlign: "right",
+    whiteSpace: "nowrap",
+    wordBreak: "normal",
+    overflowWrap: "normal",
+    fontWeight: 600,
+  };
+  const codeBodyCell: React.CSSProperties = {
+    ...bodyCell,
+    fontSize: "9.85px",
+    paddingLeft: "12px",
+    paddingRight: "12px",
+    whiteSpace: "nowrap",
+    wordBreak: "normal",
+    overflowWrap: "normal",
+  };
+  const referenceBodyCell: React.CSSProperties = {
+    ...bodyCell,
+    fontSize: "9.75px",
+    paddingLeft: "10px",
+    paddingRight: "10px",
+    lineHeight: 1.42,
+    whiteSpace: "normal",
+    wordBreak: "break-word",
+    overflowWrap: "anywhere",
+  };
+  const compactHeaderCell: React.CSSProperties = {
+    border,
+    padding: "10px 12px 12px",
+    background: "#f8fafc",
   };
   const customerLocation = [customer.street, customer.city, customer.district, customer.state, customer.pin_code]
     .filter(Boolean)
     .join(", ");
+  const estimateRowUnits = (row: LedgerRow) => {
+    const particularsUnits = Math.max(1, Math.ceil(row.description.length / 68));
+    const invoiceUnits = Math.max(1, Math.ceil((row.invoiceNo || "-").length / 34));
+    const referenceUnits = Math.max(1, Math.ceil((row.reference || "-").length / 22));
+    return Math.max(particularsUnits, invoiceUnits, referenceUnits);
+  };
+  const pages: LedgerRow[][] = [];
+  const firstPageCapacity = 18;
+  const continuationPageCapacity = 28;
+  const closingSectionUnits = 3;
+  let currentPage: LedgerRow[] = [];
+  let currentUnits = 0;
+  let currentCapacity = firstPageCapacity;
+
+  rows.forEach((row) => {
+    const units = estimateRowUnits(row);
+    if (currentPage.length > 0 && currentUnits + units > currentCapacity) {
+      pages.push(currentPage);
+      currentPage = [row];
+      currentUnits = units;
+      currentCapacity = continuationPageCapacity;
+      return;
+    }
+
+    currentPage.push(row);
+    currentUnits += units;
+  });
+
+  if (currentPage.length > 0 || pages.length === 0) {
+    pages.push(currentPage);
+  }
+
+  let lastPageUnits = pages[pages.length - 1].reduce((sum, row) => sum + estimateRowUnits(row), 0);
+  const lastPageCapacity = pages.length === 1 ? firstPageCapacity : continuationPageCapacity;
+  if (lastPageUnits + closingSectionUnits > lastPageCapacity && pages[pages.length - 1].length > 0) {
+    const spillPage: LedgerRow[] = [];
+    let spillUnits = closingSectionUnits;
+    const targetSpillUnits = Math.ceil(continuationPageCapacity * 0.35);
+    while (
+      pages[pages.length - 1].length > 0
+      && (lastPageUnits + closingSectionUnits > lastPageCapacity || spillUnits < targetSpillUnits)
+    ) {
+      const movedRow = pages[pages.length - 1].pop();
+      if (!movedRow) break;
+      const movedUnits = estimateRowUnits(movedRow);
+      spillPage.unshift(movedRow);
+      spillUnits += movedUnits;
+      lastPageUnits -= movedUnits;
+    }
+    if (spillPage.length > 0) {
+      pages.push(spillPage);
+    }
+  }
 
   return (
     <div
@@ -423,120 +536,141 @@ const LedgerPrintView = ({
         width: "100%",
       }}
     >
-      <div style={{ border: border, padding: "14px 16px 12px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "flex-start" }}>
-          <div style={{ maxWidth: "58%" }}>
-            <div style={{ fontSize: "18px", fontWeight: 700, letterSpacing: "0.02em" }}>{COMPANY.name}</div>
-            <div style={{ marginTop: "4px", color: "#374151" }}>{COMPANY.address}</div>
-            <div style={{ color: "#374151" }}>{COMPANY.city}</div>
-            <div style={{ marginTop: "6px" }}>
-              GSTIN: <strong>{COMPANY.gstin}</strong>
-            </div>
-            <div>
-              Contact: <strong>{COMPANY.contact}</strong>
-            </div>
-            <div>
-              Email: <strong>{COMPANY.email}</strong>
-            </div>
-          </div>
+      {pages.map((pageRows, pageIndex) => {
+        const isFirstPage = pageIndex === 0;
+        const isLastPage = pageIndex === pages.length - 1;
 
-          <div style={{ minWidth: "220px", textAlign: "right" }}>
-            <div style={{ fontSize: "20px", fontWeight: 700, letterSpacing: "0.05em" }}>CUSTOMER LEDGER</div>
-            <div style={{ marginTop: "8px", color: "#374151" }}>Statement Date: {fmtLedgerDate(generatedOn)}</div>
-            <div style={{ color: "#374151" }}>Customer GSTIN: {customer.gstin || "-"}</div>
-            <div style={{ color: "#374151" }}>Payment Terms: {customer.payment_terms || "-"}</div>
-            <div style={{ color: "#374151" }}>Credit Limit: Rs. {fmtPrintMoney(customer.credit_limit ?? 0)}</div>
-          </div>
-        </div>
+        return (
+          <section key={`customer-ledger-page-${pageIndex}`} className="customer-ledger-page">
+            {isFirstPage ? (
+              <div className="customer-ledger-main-header" style={{ border: border, padding: "11px 12px 10px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "20px", alignItems: "flex-start" }}>
+                  <div style={{ maxWidth: "60%" }}>
+                    <div style={{ fontSize: "18px", fontWeight: 700, letterSpacing: "0.02em" }}>{COMPANY.name}</div>
+                    <div style={{ marginTop: "4px", color: "#374151" }}>{COMPANY.address}</div>
+                    <div style={{ color: "#374151" }}>{COMPANY.city}</div>
+                    <div style={{ marginTop: "6px" }}>GSTIN: <strong>{COMPANY.gstin}</strong></div>
+                    <div>Contact: <strong>{COMPANY.contact}</strong></div>
+                    <div>Email: <strong>{COMPANY.email}</strong></div>
+                  </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "14px", marginTop: "16px" }}>
-          <div style={{ border: border }}>
-            <div style={{ padding: "8px 10px", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", background: "#f8fafc", borderBottom: border }}>
-              Party Details
-            </div>
-            <div style={{ padding: "10px" }}>
-              <div style={{ fontSize: "16px", fontWeight: 700 }}>{customer.customer_name}</div>
-              {customer.trade_name && customer.trade_name !== customer.customer_name && (
-                <div style={{ marginTop: "2px", color: "#475569" }}>{customer.trade_name}</div>
-              )}
-              <div style={{ marginTop: "8px" }}>{customer.contact_name || "-"}</div>
-              <div>{customer.mobile || "-"}</div>
-              <div>{customer.email || "-"}</div>
-              <div style={{ marginTop: "8px", color: "#374151" }}>{customerLocation || "-"}</div>
-            </div>
-          </div>
+                  <div style={{ minWidth: "260px", textAlign: "right" }}>
+                    <div style={{ fontSize: "20px", fontWeight: 700, letterSpacing: "0.05em" }}>CUSTOMER LEDGER</div>
+                    <div style={{ marginTop: "8px", color: "#374151" }}>Statement Date: {fmtLedgerDate(generatedOn)}</div>
+                    <div style={{ color: "#374151" }}>Customer GSTIN: {customer.gstin || "-"}</div>
+                    <div style={{ color: "#374151" }}>Payment Terms: {customer.payment_terms || "-"}</div>
+                    <div style={{ color: "#374151" }}>Credit Limit: Rs. {fmtPrintMoney(customer.credit_limit ?? 0)}</div>
+                  </div>
+                </div>
 
-          <div style={{ border: border }}>
-            <div style={{ padding: "8px 10px", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", background: "#f8fafc", borderBottom: border }}>
-              Summary
-            </div>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1.22fr 1fr", gap: "12px", marginTop: "12px" }}>
+                  <div style={{ border: border }}>
+                    <div style={{ padding: "8px 12px", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", background: "#f8fafc", borderBottom: border }}>
+                      Party Details
+                    </div>
+                    <div style={{ padding: "12px" }}>
+                      <div style={{ fontSize: "16px", fontWeight: 700 }}>{customer.customer_name}</div>
+                      {customer.trade_name && customer.trade_name !== customer.customer_name && (
+                        <div style={{ marginTop: "2px", color: "#475569" }}>{customer.trade_name}</div>
+                      )}
+                      <div style={{ marginTop: "8px" }}>{customer.contact_name || "-"}</div>
+                      <div>{customer.mobile || "-"}</div>
+                      <div>{customer.email || "-"}</div>
+                      <div style={{ marginTop: "8px", color: "#374151" }}>{customerLocation || "-"}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ border: border }}>
+                    <div style={{ padding: "8px 12px", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", background: "#f8fafc", borderBottom: border }}>
+                      Summary
+                    </div>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <tbody>
+                        {[
+                          ["Gross Invoiced", totalGrossRevenue],
+                          ["Credit Notes", -totalCreditNotes],
+                          ["Net Revenue", totalRevenue],
+                          ["Collected", -totalPaid],
+                          ["Outstanding", totalOutstanding],
+                        ].map(([label, value], index) => (
+                          <tr key={String(label)}>
+                            <td style={{ padding: "10px 12px", borderBottom: index === 4 ? "none" : border, color: "#475569" }}>{label}</td>
+                            <td style={{ padding: "10px 12px", borderBottom: index === 4 ? "none" : border, textAlign: "right", fontWeight: 700 }}>
+                              Rs. {fmtPrintMoney(Number(value))}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ borderTop: border, borderBottom: border, padding: "9px 8px 10px", marginBottom: "8px" }}>
+                <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>{COMPANY.name}</div>
+                <div style={{ marginTop: "4px", fontSize: "12px", fontWeight: 600 }}>Customer Ledger - {customer.customer_name}</div>
+                <div style={{ marginTop: "5px", display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "center" }}>
+                  <div style={{ fontSize: "10.5px", color: "#475569" }}>Statement Date: {fmtLedgerDate(generatedOn)}</div>
+                  <div style={{ fontSize: "10.5px", fontWeight: 600, color: "#475569", whiteSpace: "nowrap" }}>Page {pageIndex + 1}</div>
+                </div>
+              </div>
+            )}
+
+            <table className="customer-ledger-table" style={{ width: "100%", borderCollapse: "collapse", marginTop: isFirstPage ? "8px" : 0, tableLayout: "fixed" }}>
+              <thead>
+                <tr>
+                  <th style={{ ...headerCell, width: "10%" }}>Date</th>
+                  <th style={{ ...headerCell, width: "8%" }}>Type</th>
+                  <th style={{ ...headerCell, width: "14%" }}>Reference</th>
+                  <th style={{ ...headerCell, width: "16%" }}>Invoice No.</th>
+                  <th style={{ ...headerCell, width: "23%" }}>Particulars</th>
+                  <th style={{ ...headerCell, width: "9%", textAlign: "right" }}>Debit</th>
+                  <th style={{ ...headerCell, width: "9%", textAlign: "right" }}>Credit</th>
+                  <th style={{ ...headerCell, width: "11%", textAlign: "right" }}>Balance</th>
+                </tr>
+              </thead>
               <tbody>
-                {[
-                  ["Gross Invoiced", totalGrossRevenue],
-                  ["Credit Notes", -totalCreditNotes],
-                  ["Net Revenue", totalRevenue],
-                  ["Collected", -totalPaid],
-                  ["Outstanding", totalOutstanding],
-                ].map(([label, value], index) => (
-                  <tr key={String(label)}>
-                    <td style={{ padding: "8px 10px", borderBottom: index === 4 ? "none" : border, color: "#475569" }}>{label}</td>
-                    <td style={{ padding: "8px 10px", borderBottom: index === 4 ? "none" : border, textAlign: "right", fontWeight: 700 }}>
-                      Rs. {fmtPrintMoney(Number(value))}
-                    </td>
+                {pageRows.map((row, rowIndex) => {
+                  const absoluteIndex = rows.indexOf(row);
+                  return (
+                    <tr key={`${row.type}-${row.reference}-${pageIndex}-${rowIndex}`} style={{ background: absoluteIndex % 2 === 0 ? "#ffffff" : "#f9fafb" }}>
+                      <td style={{ ...bodyCell, whiteSpace: "normal", wordBreak: "keep-all" }}>{fmtLedgerDate(row.date)}</td>
+                      <td style={bodyCell}>{row.type}</td>
+                      <td style={referenceBodyCell}>{row.reference}</td>
+                      <td style={{ ...codeBodyCell, fontWeight: 600 }}>{row.invoiceNo}</td>
+                      <td style={bodyCell}>{row.description}</td>
+                      <td style={numericBodyCell}>{row.debit > 0 ? fmtPrintMoney(row.debit) : "-"}</td>
+                      <td style={numericBodyCell}>{row.credit > 0 ? fmtPrintMoney(row.credit) : "-"}</td>
+                      <td style={{ ...numericBodyCell, fontWeight: 700 }}>{fmtPrintMoney(row.runningBalance)}</td>
+                    </tr>
+                  );
+                })}
+                {isLastPage && (
+                  <tr style={{ background: "#eef2ff" }}>
+                    <td style={{ ...bodyCell, fontWeight: 700 }} colSpan={5}>Closing Outstanding</td>
+                    <td style={{ ...numericBodyCell, fontWeight: 700 }}>{fmtPrintMoney(totalGrossRevenue)}</td>
+                    <td style={{ ...numericBodyCell, fontWeight: 700 }}>{fmtPrintMoney(totalPaid + totalCreditNotes)}</td>
+                    <td style={{ ...numericBodyCell, fontWeight: 700 }}>{fmtPrintMoney(totalOutstanding)}</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
-          </div>
-        </div>
-      </div>
 
-      <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "14px" }}>
-        <thead>
-          <tr>
-            <th style={{ ...headerCell, width: "11%" }}>Date</th>
-            <th style={{ ...headerCell, width: "12%" }}>Type</th>
-            <th style={{ ...headerCell, width: "14%" }}>Reference</th>
-            <th style={{ ...headerCell, width: "14%" }}>Invoice No.</th>
-            <th style={{ ...headerCell }}>Particulars</th>
-            <th style={{ ...headerCell, width: "12%", textAlign: "right" }}>Debit</th>
-            <th style={{ ...headerCell, width: "12%", textAlign: "right" }}>Credit</th>
-            <th style={{ ...headerCell, width: "13%", textAlign: "right" }}>Balance</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={`${row.type}-${row.reference}-${index}`}>
-              <td style={bodyCell}>{fmtLedgerDate(row.date)}</td>
-              <td style={bodyCell}>{row.type}</td>
-              <td style={bodyCell}>{row.reference}</td>
-              <td style={bodyCell}>{row.invoiceNo}</td>
-              <td style={bodyCell}>{row.description}</td>
-              <td style={{ ...bodyCell, textAlign: "right" }}>{row.debit > 0 ? fmtPrintMoney(row.debit) : "-"}</td>
-              <td style={{ ...bodyCell, textAlign: "right" }}>{row.credit > 0 ? fmtPrintMoney(row.credit) : "-"}</td>
-              <td style={{ ...bodyCell, textAlign: "right", fontWeight: 700 }}>{fmtPrintMoney(row.runningBalance)}</td>
-            </tr>
-          ))}
-          <tr>
-            <td style={{ ...bodyCell, fontWeight: 700 }} colSpan={5}>Closing Outstanding</td>
-            <td style={{ ...bodyCell, textAlign: "right", fontWeight: 700 }}>{fmtPrintMoney(totalGrossRevenue)}</td>
-            <td style={{ ...bodyCell, textAlign: "right", fontWeight: 700 }}>{fmtPrintMoney(totalPaid + totalCreditNotes)}</td>
-            <td style={{ ...bodyCell, textAlign: "right", fontWeight: 700 }}>{fmtPrintMoney(totalOutstanding)}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div style={{ marginTop: "14px", display: "flex", justifyContent: "space-between", gap: "16px" }}>
-        <div style={{ maxWidth: "62%", color: "#475569", lineHeight: 1.5 }}>
-          This statement reflects invoices, payments, and credit notes recorded in the system as of the statement date.
-          Please contact us in case of any discrepancy.
-        </div>
-        <div style={{ minWidth: "220px", textAlign: "right" }}>
-          <div style={{ borderTop: border, paddingTop: "32px", fontWeight: 700 }}>For {COMPANY.name}</div>
-          <div style={{ color: "#475569", marginTop: "4px" }}>Authorized Signatory</div>
-        </div>
-      </div>
+            {isLastPage && (
+              <div style={{ marginTop: "14px", display: "flex", justifyContent: "space-between", gap: "16px" }}>
+                <div style={{ maxWidth: "66%", color: "#475569", lineHeight: 1.5 }}>
+                  This statement reflects invoices, payments, and credit notes recorded in the system as of the statement date.
+                  Please contact us in case of any discrepancy.
+                </div>
+                <div style={{ minWidth: "240px", textAlign: "right" }}>
+                  <div style={{ borderTop: border, paddingTop: "32px", fontWeight: 700 }}>For {COMPANY.name}</div>
+                  <div style={{ color: "#475569", marginTop: "4px" }}>Authorized Signatory</div>
+                </div>
+              </div>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 };
@@ -727,15 +861,67 @@ const CustomerProfile = () => {
 
   const handlePrintLedger = useCallback(() => {
     if (invoices.length === 0 || !customer) return;
+    const printNode = document.getElementById("customer-ledger-print-area");
+    if (!printNode) return;
 
-    if (!document.getElementById("customer-ledger-print-style")) {
-      const style = document.createElement("style");
-      style.id = "customer-ledger-print-style";
-      style.textContent = LEDGER_PRINT_STYLES;
-      document.head.appendChild(style);
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+
+    const cleanup = () => {
+      window.setTimeout(() => {
+        iframe.remove();
+      }, 0);
+    };
+
+    document.body.appendChild(iframe);
+
+    const iframeDocument = iframe.contentDocument;
+    if (!iframeDocument) {
+      cleanup();
+      return;
     }
 
-    window.print();
+    iframeDocument.open();
+    iframeDocument.write(`
+      <!doctype html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <title>Customer Ledger</title>
+          <style>${LEDGER_PRINT_STYLES}</style>
+        </head>
+        <body>
+          ${printNode.outerHTML}
+        </body>
+      </html>
+    `);
+    iframeDocument.close();
+
+    const printWindow = iframe.contentWindow;
+    if (!printWindow) {
+      cleanup();
+      return;
+    }
+
+    const runPrint = () => {
+      const removeAfterPrint = () => {
+        printWindow.removeEventListener("afterprint", removeAfterPrint);
+        cleanup();
+      };
+
+      printWindow.addEventListener("afterprint", removeAfterPrint);
+      printWindow.focus();
+      printWindow.print();
+      window.setTimeout(cleanup, 3000);
+    };
+
+    window.setTimeout(runPrint, 250);
   }, [customer, invoices.length]);
 
   if (loading || hydratedLoading) {
@@ -784,7 +970,10 @@ const CustomerProfile = () => {
       {toast && <Toast type={toast.type} msg={toast.msg} />}
 
       {customer && invoices.length > 0 && (
-        <div style={{ position: "fixed", left: "-9999px", top: 0, width: "210mm", zIndex: -1 }}>
+        <div
+          className="customer-ledger-print-host"
+          style={{ position: "fixed", left: "-9999px", top: 0, width: "210mm", zIndex: -1 }}
+        >
           <LedgerPrintView
             customer={customer}
             rows={ledgerRows}
