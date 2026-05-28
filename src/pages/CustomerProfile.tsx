@@ -123,6 +123,7 @@ body {
   }
   #customer-ledger-print-area .customer-ledger-table {
     width: 100% !important;
+    background: #ffffff !important;
   }
   #customer-ledger-print-area .customer-ledger-page {
     page-break-after: always !important;
