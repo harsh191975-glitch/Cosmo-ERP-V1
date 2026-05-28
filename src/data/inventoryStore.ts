@@ -2,32 +2,26 @@
 // Store layer for inventory — the single access boundary between the app and
 // the inventory_items / inventory_transactions Supabase tables.
 //
+// MULTI-PROFILE ARCHITECTURE (v2)
+// ─────────────────────────────────────────────────────────────────────────────
+// Products now belong to one of 5 profile types, each with different UOM,
+// costing, and display logic. The store layer exposes:
+//   • getDisplayStock(item)       — formatted dual-unit string
+//   • entryToPurchaseQty(...)     — converts UI entry to valuation qty
+//   • All existing CRUD functions — extended with profile_data + UOM columns
+//
+// UNIT ARCHITECTURE:
+//   current_stock  always in valuation_unit (KG, Litre, BDL, pcs)
+//   buy_rate       always per valuation_unit
+//   purchase_unit  what the supplier invoices in
+//   conversion_factor  valuation_units per purchase_unit
+//
 // FIX CHANGELOG
-// ─────────────
-// [FIX-CAT] CATEGORY CONSTRAINT (400 errors)
-//   VALID_ITEM_CATEGORIES was using snake_case values ("raw_material") that
-//   don't match the DB check constraint which expects title-case strings.
-//   Confirmed constraint via pg_get_constraintdef:
-//     ARRAY['Raw Material', 'Packaging', 'Finished Good']
-//   "Other" is NOT in the constraint — it has been removed.
-//   The type, constant, and isValidItemCategory guard are now aligned to the
-//   exact DB values. Use the ITEM_CATEGORY_LABELS map for display strings if
-//   different UI labels are needed without touching the stored value.
-//
-// [FIX-RLS] RLS COMPLIANCE on ALL writes
-//   requireUserId() / attachUserId() helpers (same pattern as expenseStore)
-//   are applied to every .insert() and .upsert() call:
-//     • postTransaction  — inventory_transactions insert
-//     • addItem          — inventory_items insert
-//     • updateItem       — inventory_items update (no user_id change needed,
-//                          but RLS USING already gates by user_id column so
-//                          the update is safe; no mutation of user_id here)
-//   Both functions previously had inline getCurrentUserId() checks that only
-//   guarded some paths. They now consistently throw via requireUserId().
-//
-// [FIX-NOOP] reverseTransaction / deleteItem
-//   These are DELETE operations. RLS USING (user_id = auth.uid()) already
-//   prevents cross-user deletes at the DB level. No user_id payload needed.
+// ─────────────────────────────────────────────────────────────────────────────
+// [FIX-CAT] CATEGORY CONSTRAINT — updated for 5 profile types.
+//   DB CHECK constraint must be updated manually in Supabase (see plan).
+// [FIX-RLS] RLS COMPLIANCE — requireUserId() / attachUserId() on all writes.
+// [FIX-NOOP] DELETE ops gated by DB RLS — no payload change needed.
 
 import { supabase, getCurrentUserId } from "@/lib/supabaseClient";
 import type {
@@ -36,81 +30,163 @@ import type {
   StockSummary,
   StockMutationResult,
   TransactionType,
+  ProductType,
+  ProductProfile,
 } from "@/data/inventory";
+import { formatStockDisplay, getConversionFactor, purchaseToValuation } from "@/data/inventory";
 
-// ── [FIX-CAT] Corrected item categories ───────────────────────────────────
-// ⚠️  These THREE values are the ONLY ones accepted by the DB check constraint
-//   (confirmed via pg_get_constraintdef):
-//   CHECK ((category = ANY (ARRAY['Raw Material'::text, 'Packaging'::text, 'Finished Good'::text])))
-// "Other" is NOT in the constraint and has been removed.
-// Do NOT add values here without first updating the constraint in Supabase.
+// ── [FIX-CAT] Corrected + extended item categories ────────────────────────
+// ⚠️  The DB check constraint must be updated to include Chemical + Trading Goods.
+//     See implementation_plan.md for the SQL migration.
+//     After that migration, these 5 values are the ONLY accepted categories.
 export const ITEM_CATEGORIES = [
   "Raw Material",
+  "Chemical",
   "Finished Good",
   "Packaging",
+  "Trading Goods",
 ] as const;
 
 export type ItemCategory = (typeof ITEM_CATEGORIES)[number];
 
-// Optional: map DB values → human labels if the UI wants different display text.
-// Currently they're identical; add entries here if the UI ever diverges.
+// Display labels for each profile type
 export const ITEM_CATEGORY_LABELS: Record<ItemCategory, string> = {
   "Raw Material":  "Raw Material",
+  "Chemical":      "Chemical / Liquid",
   "Finished Good": "Finished Good",
   "Packaging":     "Packaging",
+  "Trading Goods": "Trading Goods",
 };
 
-// ── Direction helper (same logic as Inventory.tsx txDir) ──────────────────
-const TX_IN_TYPES: TransactionType[] = ["purchase_in", "return_in"];
-const VALID_TRANSACTION_TYPES: TransactionType[] = [
+// Profile type icons / colors for UI (Lucide icon name strings)
+export const ITEM_CATEGORY_META: Record<ItemCategory, {
+  icon: string;
+  color: string;
+  badge: string;
+  description: string;
+}> = {
+  "Raw Material":  {
+    icon: "FlaskConical",
+    color: "text-amber-400",
+    badge: "bg-amber-950/50 text-amber-400 border-amber-500/30",
+    description: "Purchased in bags, valued in KG",
+  },
+  "Chemical":      {
+    icon: "Beaker",
+    color: "text-cyan-400",
+    badge: "bg-cyan-950/50 text-cyan-400 border-cyan-500/30",
+    description: "Purchased in drums, valued in litres",
+  },
+  "Finished Good": {
+    icon: "Package",
+    color: "text-violet-400",
+    badge: "bg-violet-950/50 text-violet-400 border-violet-500/30",
+    description: "Manufactured pipe bundles with MRP & dealer pricing",
+  },
+  "Packaging":     {
+    icon: "Box",
+    color: "text-emerald-400",
+    badge: "bg-emerald-950/50 text-emerald-400 border-emerald-500/30",
+    description: "Packaging materials tracked in pcs / rolls",
+  },
+  "Trading Goods": {
+    icon: "ShoppingCart",
+    color: "text-blue-400",
+    badge: "bg-blue-950/50 text-blue-400 border-blue-500/30",
+    description: "Purchased for resale with MRP",
+  },
+};
+
+// ── Direction helper ───────────────────────────────────────────────
+const TX_IN_TYPES: string[] = ["Purchase/In", "purchase_in", "return_in"];
+const VALID_TRANSACTION_TYPES: string[] = [
+  "Purchase/In",
   "purchase_in",
+  "Production/Out",
   "production_out",
+  "Sales/Out",
   "sales_out",
+  "Adjustment",
   "adjustment",
   "return_in",
 ];
 
-export const txDirection = (type: TransactionType): "in" | "out" =>
+export const txDirection = (type: string): "in" | "out" =>
   TX_IN_TYPES.includes(type) ? "in" : "out";
 
-const isValidTransactionType = (type: string): type is TransactionType =>
-  VALID_TRANSACTION_TYPES.includes(type as TransactionType);
+const isValidTransactionType = (type: string): boolean =>
+  VALID_TRANSACTION_TYPES.includes(type);
 
-// [FIX-CAT] Now validates against corrected title-case values
 const isValidItemCategory = (category: string): category is ItemCategory =>
   (ITEM_CATEGORIES as readonly string[]).includes(category);
 
-// ── [FIX-RLS] Auth helpers ────────────────────────────────────────────────
+// ── [FIX-RLS] Auth helpers ─────────────────────────────────────────
 
-/**
- * Resolves the current user's ID or throws immediately.
- * Use at the top of every write function so RLS failures surface as a
- * clear auth error rather than a silent 403 from Supabase.
- */
 async function requireUserId(): Promise<string> {
   const userId = await getCurrentUserId();
-  if (!userId) {
-    throw new Error("Authenticated user not found");
-  }
+  if (!userId) throw new Error("Authenticated user not found");
   return userId;
 }
 
-/**
- * Stamps `user_id` onto any insert/upsert payload without mutating the original.
- */
 function attachUserId<T extends object>(payload: T, userId: string): T & { user_id: string } {
   return { ...payload, user_id: userId };
 }
 
-// ════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// DISPLAY HELPERS — re-exported for convenience
+// ══════════════════════════════════════════════════════════════════
+
+/**
+ * Returns the formatted stock string for an inventory item.
+ * Automatically uses dual-unit display when purchase_unit + conversion_factor are set.
+ *
+ * Examples:
+ *   Raw Material (25 KG/Bag):  "2500 KG (100 Bags)"
+ *   Chemical (220 L/Drum):     "4400 L (20 Drums)"
+ *   Finished Good:             "120 BDL"
+ */
+export { formatStockDisplay } from "@/data/inventory";
+
+/**
+ * Converts a quantity entered in purchase units to the valuation unit.
+ * Use this when recording a stock movement entered in purchase units.
+ *
+ * E.g. user enters "100 Bags" → stores 2500 KG in current_stock.
+ */
+export function entryToValuationQty(
+  enteredQty: number,
+  item: Pick<InventoryItem, "purchase_unit" | "conversion_factor" | "unit_of_measure">,
+  enteredInPurchaseUnit: boolean
+): number {
+  if (!enteredInPurchaseUnit) return enteredQty;
+  return purchaseToValuation(enteredQty, item);
+}
+
+/**
+ * Returns the label to show next to the quantity input in stock movement forms.
+ * When a purchase unit exists, shows both: "Bags (1 Bag = 25 KG)"
+ */
+export function getMovementQtyLabel(item: InventoryItem): string {
+  if (item.purchase_unit && getConversionFactor(item) > 1) {
+    return `${item.purchase_unit}s (1 ${item.purchase_unit} = ${getConversionFactor(item)} ${item.unit_of_measure})`;
+  }
+  return item.unit_of_measure;
+}
+
+// ══════════════════════════════════════════════════════════════════
 // READ — Products
-// ════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+
+/** Full select fragment — uses * to fetch all columns including new profile_data/UOM columns.
+ *  Avoids hard-coding column names that may not exist in all DB environments.
+ */
+const ITEM_SELECT = "*";
 
 /** Fetch all inventory items ordered by category then name. */
 export const getItems = async (): Promise<InventoryItem[]> => {
   const { data, error } = await supabase
     .from("inventory_items")
-    .select("*")
+    .select(ITEM_SELECT)
     .order("category")
     .order("item_name");
 
@@ -118,16 +194,16 @@ export const getItems = async (): Promise<InventoryItem[]> => {
   return (data as InventoryItem[]) ?? [];
 };
 
-// ════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 // READ — Transactions
-// ════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 
 /** Fetch recent transactions with joined item details. Limit defaults to 300. */
 export const getTransactions = async (limit = 300): Promise<InventoryTransaction[]> => {
   const { data, error } = await supabase
     .from("inventory_transactions")
     .select(
-      "*, inventory_items(item_name, unit_of_measure, buy_rate, product_code, sku_code, current_stock)"
+      "*, inventory_items(item_name, unit_of_measure, buy_rate, product_code, sku_code, current_stock, purchase_unit, conversion_factor, category)"
     )
     .order("transaction_date", { ascending: false })
     .order("created_at",       { ascending: false })
@@ -137,37 +213,21 @@ export const getTransactions = async (limit = 300): Promise<InventoryTransaction
   return (data as InventoryTransaction[]) ?? [];
 };
 
-// ════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 // READ — Aggregate (used by P&L and Dashboard)
-// ════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 
 /**
  * VALUATION METHOD: Weighted Average Cost (WAC)
  *
  *   closingStockValue = Σ (current_stock × buy_rate)
  *
- * `buy_rate` on each item is the purchase cost per unit — a single blended
- * rate, not lot-tracked. This is equivalent to weighted average cost in a
- * periodic inventory system.
+ * Both current_stock and buy_rate are denominated in the valuation unit
+ * (KG, Litre, BDL, pcs). The dual-unit purchase system does not affect
+ * WAC — all stock is converted to valuation units on entry.
  *
- * ⚠️  FINANCIAL IMPACT — callers must understand this:
- *   P&L uses this value as:  COGS = openingStockValue + purchases − closingStockValue
- *   If closingStockValue rises (more stock on hand), COGS falls, profit rises.
- *   If closingStockValue falls (stock consumed), COGS rises, profit falls.
- *   A valuation method change (e.g. to FIFO) will move net profit without
- *   any code change in Reports.tsx — the risk lives here, not there.
- *
- * ⚠️  FAILURE BEHAVIOUR — callers must check fetchError:
- *   This function never throws. On Supabase failure it returns fetchError: string
- *   with closingStockValue: 0.
- *   That zero is NOT a safe fallback. The direction of the error is unknowable.
- *   P&L MUST refuse to render COGS, gross profit, and net profit when fetchError
- *   is set. Do not fallback, estimate, or warn-and-proceed.
- *
- * @param periodStart  ISO date string "YYYY-MM-DD". When provided, the function
- *   also computes openingStockValue — the WAC value of stock on hand just before
- *   this date, derived by replaying inventory_transactions in reverse from the
- *   current stock. When omitted (all-time view), openingStockValue is null.
+ * ⚠️  FINANCIAL IMPACT — see original comments above.
+ * ⚠️  FAILURE BEHAVIOUR — callers must check fetchError.
  */
 export const getStockSummary = async (periodStart?: string): Promise<StockSummary> => {
   const { data, error } = await supabase
@@ -245,29 +305,31 @@ export const getStockSummary = async (periodStart?: string): Promise<StockSummar
   };
 };
 
-// ════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 // WRITE — Post a transaction + update stock atomically
-// ════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 
 export interface PostTransactionPayload {
   item_id: string;
   transaction_type: TransactionType;
+  /**
+   * Quantity to record. MUST be in the valuation unit (KG, Litre, BDL, pcs).
+   * If the user entered in purchase units (Bags, Drums), convert first via
+   * entryToValuationQty() before calling this function.
+   */
   quantity_changed: number;
   transaction_date: string;   // ISO "YYYY-MM-DD"
   reference_number?: string;
   notes?: string;
-  /** Current stock of the item — caller must pass this to avoid a second read. */
+  /** Current stock of the item in valuation units — avoids a second read. */
   currentStock: number;
 }
 
 /**
  * Records a stock transaction and updates current_stock on the item.
+ * Stock is always stored and updated in valuation units.
  *
  * [FIX-RLS] Uses requireUserId() / attachUserId() on the INSERT.
- *           The stock UPDATE (.update) does not need user_id in the payload;
- *           RLS USING filters by the row's existing user_id column.
- *
- * Stock can never go below 0 on an outbound transaction.
  */
 export const postTransaction = async (
   payload: PostTransactionPayload
@@ -288,10 +350,8 @@ export const postTransaction = async (
       ? currentStock + quantity_changed
       : Math.max(0, currentStock - quantity_changed);
 
-  // [FIX-RLS] Throws clearly if there is no session.
   const userId = await requireUserId();
 
-  // 1. Insert the transaction record with user_id attached.
   const { error: txErr } = await supabase
     .from("inventory_transactions")
     .insert(
@@ -312,8 +372,6 @@ export const postTransaction = async (
     return { success: false, newStock: currentStock, error: txErr.message };
   }
 
-  // 2. Update current_stock on the item.
-  //    RLS USING on inventory_items gates this to the owner's rows.
   const { error: stockErr } = await supabase
     .from("inventory_items")
     .update({ current_stock: newStock })
@@ -326,25 +384,18 @@ export const postTransaction = async (
   return { success: true, newStock };
 };
 
-// ════════════════════════════════════════════════════════════════
-// WRITE — Reverse a transaction (used by delete in TransactionLogTab)
-// ════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// WRITE — Reverse a transaction
+// ══════════════════════════════════════════════════════════════════
 
 export interface ReverseTransactionPayload {
   transactionId: string;
   item_id: string;
   transaction_type: TransactionType;
   quantity_changed: number;
-  /** Current stock on the item at time of deletion — from the joined inventory_items field. */
   currentStock: number;
 }
 
-/**
- * Deletes a transaction record and reverses its stock effect.
- *
- * [FIX-NOOP] DELETE is gated by RLS USING (user_id = auth.uid()) at the DB
- *            level. No user_id payload is required or modified here.
- */
 export const reverseTransaction = async (
   payload: ReverseTransactionPayload
 ): Promise<StockMutationResult> => {
@@ -364,7 +415,6 @@ export const reverseTransaction = async (
       ? Math.max(0, currentStock - quantity_changed)
       : currentStock + quantity_changed;
 
-  // 1. Delete the transaction record — RLS USING handles auth enforcement.
   const { error: delErr } = await supabase
     .from("inventory_transactions")
     .delete()
@@ -374,7 +424,6 @@ export const reverseTransaction = async (
     return { success: false, newStock: currentStock, error: delErr.message };
   }
 
-  // 2. Reverse the stock on the item.
   const { error: stockErr } = await supabase
     .from("inventory_items")
     .update({ current_stock: newStock })
@@ -387,9 +436,9 @@ export const reverseTransaction = async (
   return { success: true, newStock };
 };
 
-// ════════════════════════════════════════════════════════════════
-// WRITE — Products CRUD (used by ProductsTab)
-// ════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// WRITE — Products CRUD
+// ══════════════════════════════════════════════════════════════════
 
 export type ProductPayload = Omit<InventoryItem,
   "id" | "created_at" | "updated_at" | "current_stock"
@@ -397,20 +446,17 @@ export type ProductPayload = Omit<InventoryItem,
 
 /**
  * Insert a new inventory item.
- *
- * [FIX-CAT] isValidItemCategory now validates against title-case DB values.
- * [FIX-RLS] Uses requireUserId() / attachUserId() on the INSERT.
+ * profile_data and UOM fields are included in the payload automatically.
  */
 export const addItem = async (payload: ProductPayload): Promise<{ error?: string }> => {
   if (!isValidItemCategory(payload.category)) {
     return {
       error:
         `Invalid item category "${payload.category}". ` +
-        `Allowed values (must match DB exactly): ${ITEM_CATEGORIES.join(", ")}`,
+        `Allowed values: ${ITEM_CATEGORIES.join(", ")}`,
     };
   }
 
-  // [FIX-RLS] Throws if no session — caller's try/catch will show the error.
   const userId = await requireUserId();
 
   const { error } = await supabase
@@ -422,11 +468,7 @@ export const addItem = async (payload: ProductPayload): Promise<{ error?: string
 
 /**
  * Update an existing inventory item.
- *
- * [FIX-CAT] Category validation now uses corrected title-case values.
- * [FIX-RLS] UPDATE on inventory_items is gated by RLS USING (user_id = auth.uid()).
- *           We do NOT change user_id here — the row already carries it, and
- *           the RLS policy prevents updating another user's row.
+ * Supports partial updates — only provided fields are changed.
  */
 export const updateItem = async (
   id: string,
@@ -436,7 +478,7 @@ export const updateItem = async (
     return {
       error:
         `Invalid item category "${payload.category}". ` +
-        `Allowed values (must match DB exactly): ${ITEM_CATEGORIES.join(", ")}`,
+        `Allowed values: ${ITEM_CATEGORIES.join(", ")}`,
     };
   }
 
@@ -450,9 +492,6 @@ export const updateItem = async (
 
 /**
  * Delete an inventory item by ID.
- *
- * [FIX-NOOP] RLS USING prevents cross-user deletes at the DB level.
- *            No user_id payload required.
  */
 export const deleteItem = async (id: string): Promise<{ error?: string }> => {
   const { error } = await supabase
