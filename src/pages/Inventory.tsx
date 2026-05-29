@@ -11,7 +11,8 @@ import type {
   RawMaterialProfile, ChemicalProfile, FinishedGoodsProfile,
   PackagingProfile, TradingGoodsProfile,
 } from "@/data/inventory";
-import { formatStockDisplay, getConversionFactor, valuationToPurchase } from "@/data/inventory";
+import { formatStockDisplay, getConversionFactor, valuationToPurchase, getInventoryItemValuationRate, getFinishedGoodValuationRate, getTotalWeightInStock, getTotalInventoryWeight } from "@/data/inventory";
+
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -207,10 +208,12 @@ interface ChemicalForm {
 interface FinishedGoodsForm {
   sku_code: string; product_code: string; item_name: string;
   mrp: string; dealer_discount_pct: string;
+  valuation_rate: string;
   bundle_weight: string; pieces_per_bundle: string;
   diameter: string; pressure_grade: string; length: string; color: string;
   minimum_reorder_level: string;
 }
+
 interface PackagingForm {
   sku_code: string; product_code: string; item_name: string;
   unit_of_measure: string; buy_rate: string; minimum_reorder_level: string;
@@ -225,7 +228,8 @@ type AnyProfileForm = RawMaterialForm | ChemicalForm | FinishedGoodsForm | Packa
 
 const EMPTY_RM: RawMaterialForm = { sku_code: "", product_code: "", item_name: "", purchase_unit: "Bag", conversion_factor: "25", buy_rate: "", minimum_reorder_level: "" };
 const EMPTY_CH: ChemicalForm   = { sku_code: "", product_code: "", item_name: "", purchase_unit: "Drum", litres_per_drum: "220", buy_rate: "", minimum_reorder_level: "" };
-const EMPTY_FG: FinishedGoodsForm = { sku_code: "", product_code: "", item_name: "", mrp: "", dealer_discount_pct: "", bundle_weight: "", pieces_per_bundle: "", diameter: "", pressure_grade: "", length: "", color: "Grey", minimum_reorder_level: "" };
+const EMPTY_FG: FinishedGoodsForm = { sku_code: "", product_code: "", item_name: "", mrp: "", dealer_discount_pct: "", valuation_rate: "", bundle_weight: "", pieces_per_bundle: "", diameter: "", pressure_grade: "", length: "", color: "Grey", minimum_reorder_level: "" };
+
 const EMPTY_PK: PackagingForm  = { sku_code: "", product_code: "", item_name: "", unit_of_measure: "pcs", buy_rate: "", minimum_reorder_level: "" };
 const EMPTY_TG: TradingGoodsForm = { sku_code: "", product_code: "", item_name: "", unit_of_measure: "pcs", buy_rate: "", mrp: "", dealer_discount_pct: "", minimum_reorder_level: "" };
 
@@ -296,12 +300,14 @@ function buildPayload(type: ProductType, form: AnyProfileForm): Omit<InventoryIt
     const mrp = parseFloat(f.mrp) || 0;
     const discPct = parseFloat(f.dealer_discount_pct) || 0;
     const netDealer = mrp * (1 - discPct / 100);
+    const valuationRate = parseFloat(f.valuation_rate) || 0;
     const profile: FinishedGoodsProfile = {
       product_type: "Finished Good",
       sales_unit: "BDL",
       mrp,
       dealer_discount_pct: discPct,
       net_dealer_price: netDealer,
+      valuation_rate: valuationRate,
       bundle_weight: parseFloat(f.bundle_weight) || 0,
       pieces_per_bundle: parseInt(f.pieces_per_bundle) || 0,
       diameter: f.diameter.trim(),
@@ -316,11 +322,13 @@ function buildPayload(type: ProductType, form: AnyProfileForm): Omit<InventoryIt
       conversion_factor: 1,
       valuation_unit: "BDL",
       display_unit: "BDL",
-      buy_rate: 0,
+      // Mirror valuation_rate into buy_rate so all WAC formulas work unchanged
+      buy_rate: valuationRate,
       minimum_reorder_level: parseFloat(f.minimum_reorder_level) || 0,
       profile_data: profile,
     };
   }
+
 
   if (type === "Packaging") {
     const f = form as PackagingForm;
@@ -503,6 +511,7 @@ const FinishedGoodsFields = ({ f, setF }: { f: FinishedGoodsForm; setF: (f: Fini
   const mrp = parseFloat(f.mrp) || 0;
   const disc = parseFloat(f.dealer_discount_pct) || 0;
   const netDealer = mrp * (1 - disc / 100);
+  const valRate = parseFloat(f.valuation_rate) || 0;
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
@@ -523,6 +532,31 @@ const FinishedGoodsFields = ({ f, setF }: { f: FinishedGoodsForm; setF: (f: Fini
         {mrp > 0 && (
           <div className="px-3 py-2 rounded-lg bg-violet-950/20 border border-violet-500/10 text-xs text-violet-300">
             MRP: {fmtRate(mrp)} &nbsp;−&nbsp; {disc}% = Net Dealer: <strong>{fmtRate(netDealer)}</strong>
+          </div>
+        )}
+      </div>
+
+      {/* Production Cost / Valuation */}
+      <div className="rounded-xl border border-amber-500/20 bg-amber-950/10 p-4 space-y-3">
+        <p className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+          <Boxes className="h-3 w-3" /> Inventory Valuation
+        </p>
+        <Field
+          label="Production Cost per BDL (₹)"
+          hint="Used for inventory value: Stock × Production Cost. Leave blank to temporarily use Net Dealer Price."
+        >
+          <FInput
+            value={f.valuation_rate}
+            onChange={set("valuation_rate")}
+            type="number" min="0" step="0.01"
+            placeholder={netDealer > 0 ? `e.g. ${netDealer.toFixed(2)} (auto-fill from dealer price)` : "e.g. 850.00"}
+          />
+        </Field>
+        {(valRate > 0 || netDealer > 0) && (
+          <div className="px-3 py-2 rounded-lg bg-amber-950/20 border border-amber-500/10 text-xs text-amber-300">
+            {valRate > 0
+              ? <>Valuation rate: <strong>{fmtRate(valRate)} / BDL</strong><br /><span className="opacity-70">Inventory value = Stock × {fmtRate(valRate)}</span></>
+              : <>No production cost set — will use Net Dealer price <strong>{fmtRate(netDealer)}</strong> as estimate</>}
           </div>
         )}
       </div>
@@ -564,6 +598,7 @@ const FinishedGoodsFields = ({ f, setF }: { f: FinishedGoodsForm; setF: (f: Fini
     </div>
   );
 };
+
 
 const PackagingFields = ({ f, setF }: { f: PackagingForm; setF: (f: PackagingForm) => void }) => {
   const set = (k: keyof PackagingForm) => (v: string) => setF({ ...f, [k]: v });
@@ -647,6 +682,8 @@ function formFromItem(item: InventoryItem): { type: ProductType; form: AnyProfil
       item_name: item.item_name,
       mrp: String(pd?.mrp ?? ""),
       dealer_discount_pct: String(pd?.dealer_discount_pct ?? ""),
+      // Read valuation_rate: prefer buy_rate (source of truth), then profile_data.valuation_rate
+      valuation_rate: String(item.buy_rate && item.buy_rate > 0 ? item.buy_rate : (pd?.valuation_rate ?? "")),
       bundle_weight: String(pd?.bundle_weight ?? ""),
       pieces_per_bundle: String(pd?.pieces_per_bundle ?? ""),
       diameter: pd?.diameter ?? "",
@@ -657,6 +694,7 @@ function formFromItem(item: InventoryItem): { type: ProductType; form: AnyProfil
     };
     return { type, form: f };
   }
+
 
   if (type === "Trading Goods") {
     const f: TradingGoodsForm = {
@@ -853,7 +891,9 @@ const ProductsTab = () => {
 
   const lowCount = items.filter(i => i.current_stock <= i.minimum_reorder_level).length;
   const maxStock = items.length > 0 ? Math.max(...items.map(i => i.current_stock)) : 1;
-  const totalValue = items.reduce((s, i) => s + i.current_stock * (i.buy_rate ?? 0), 0);
+  const totalValue = items.reduce((s, i) => s + i.current_stock * getInventoryItemValuationRate(i), 0);
+  const totalInventoryWeight = getTotalInventoryWeight(items);
+
 
   return (
     <div className="space-y-5">
@@ -867,14 +907,20 @@ const ProductsTab = () => {
       )}
 
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         <KpiCard label="Total Products" value={items.length} icon={Package} />
         <KpiCard label="In Stock" value={items.filter(i => i.current_stock > i.minimum_reorder_level).length}
           color="text-emerald-400" icon={Check} glow="emerald" />
         <KpiCard label="Low / Out of Stock" value={lowCount}
           color={lowCount > 0 ? "text-red-400" : "text-emerald-400"} icon={AlertTriangle} glow={lowCount > 0 ? "red" : "emerald"} />
         <KpiCard label="Inventory Value" value={fmtRate(totalValue)} icon={Boxes} />
+        <KpiCard
+          label="Total Inventory Weight"
+          value={`${totalInventoryWeight.toLocaleString("en-IN", { maximumFractionDigits: 2 })} KG`}
+          icon={Layers} color="text-violet-400" glow="violet"
+        />
       </div>
+
 
       {/* Filters */}
       <div className="relative rounded-xl border border-border/60 bg-gradient-to-br from-card to-card/60 backdrop-blur-sm p-4">
@@ -969,12 +1015,20 @@ const ProductsTab = () => {
                         {/* Stock bar */}
                         <StockBar current={item.current_stock} reorder={item.minimum_reorder_level} max={maxStock} />
 
-                        {/* Value row */}
-                        {(item.buy_rate ?? 0) > 0 && (
-                          <p className="text-xs text-muted-foreground">
-                            {item.current_stock.toLocaleString("en-IN")} {item.unit_of_measure} × {fmtRate(item.buy_rate!)} = <span className="text-foreground font-medium">{fmtRate(item.current_stock * item.buy_rate!)}</span>
-                          </p>
-                        )}
+                        {/* Value row — unified for all types via getInventoryItemValuationRate */}
+                        {(() => {
+                          const vRate = getInventoryItemValuationRate(item);
+                          const { isFallback } = item.category === "Finished Good"
+                            ? getFinishedGoodValuationRate(item)
+                            : { isFallback: false };
+                          return vRate > 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                              {item.current_stock.toLocaleString("en-IN")} {item.unit_of_measure} × {fmtRate(vRate)} = <span className="text-foreground font-medium">{fmtRate(item.current_stock * vRate)}</span>
+                              {isFallback && <span className="ml-1.5 text-amber-400/70 italic">(Estimated from dealer price)</span>}
+                            </p>
+                          ) : null;
+                        })()}
+
                         {/* Finished Good: MRP / dealer price preview */}
                         {item.category === "Finished Good" && pd?.mrp > 0 && (
                           <p className="text-xs text-muted-foreground">
@@ -1074,6 +1128,7 @@ const ProductsTab = () => {
                           {/* Finished Good specific */}
                           {item.category === "Finished Good" && pd && (
                             <>
+                              {/* Row 1: Pricing */}
                               <div className="grid grid-cols-4 gap-4 text-sm pt-2 border-t border-white/5">
                                 <div>
                                   <p className="text-xs text-muted-foreground mb-0.5">MRP</p>
@@ -1087,11 +1142,60 @@ const ProductsTab = () => {
                                   <p className="text-xs text-muted-foreground mb-0.5">Net Dealer Price</p>
                                   <p className="font-medium text-violet-400">{pd.net_dealer_price ? fmtRate(pd.net_dealer_price) : "—"}</p>
                                 </div>
+                                {/* Production Cost / Valuation Rate */}
+                                {(() => {
+                                  const { rate: vRate, isFallback } = getFinishedGoodValuationRate(item);
+                                  return (
+                                    <div>
+                                      <p className="text-xs text-muted-foreground mb-0.5">Production Cost / BDL</p>
+                                      <p className="font-medium text-amber-400">{vRate > 0 ? fmtRate(vRate) : "—"}</p>
+                                      {isFallback && <p className="text-xs text-amber-400/50 mt-0.5 italic">est. from dealer price</p>}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+
+                              {/* Row 2: Stock, Weight & Inventory Value */}
+                              <div className="grid grid-cols-4 gap-4 text-sm pt-2 border-t border-white/5">
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-0.5">Current Stock</p>
+                                  <p className="font-bold text-foreground">{item.current_stock.toLocaleString("en-IN", { maximumFractionDigits: 2 })} BDL</p>
+                                </div>
                                 <div>
                                   <p className="text-xs text-muted-foreground mb-0.5">Bundle Weight</p>
                                   <p className="font-medium">{pd.bundle_weight ? `${pd.bundle_weight} KG` : "—"}</p>
                                 </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-0.5">Total Weight in Stock</p>
+                                  {(() => {
+                                    const tw = getTotalWeightInStock(item);
+                                    return tw !== null ? (
+                                      <>
+                                        <p className="font-bold text-violet-400">{tw.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KG</p>
+                                        <p className="text-xs text-muted-foreground/60 mt-0.5">{item.current_stock.toLocaleString("en-IN", { maximumFractionDigits: 2 })} × {pd.bundle_weight} KG</p>
+                                      </>
+                                    ) : <p className="font-medium text-muted-foreground">—</p>;
+                                  })()}
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-0.5">Inventory Value</p>
+                                  {(() => {
+                                    const { rate: vRate, isFallback } = getFinishedGoodValuationRate(item);
+                                    const invValue = item.current_stock * vRate;
+                                    return vRate > 0 ? (
+                                      <>
+                                        <p className="font-bold text-emerald-400">{fmtRate(invValue)}</p>
+                                        <p className="text-xs text-muted-foreground/60 mt-0.5">
+                                          {item.current_stock.toLocaleString("en-IN", { maximumFractionDigits: 2 })} × {fmtRate(vRate)}
+                                          {isFallback && <span className="text-amber-400/60 ml-1 italic">(est.)</span>}
+                                        </p>
+                                      </>
+                                    ) : <p className="font-medium text-muted-foreground">—</p>;
+                                  })()}
+                                </div>
                               </div>
+
+                              {/* Row 3: Pipe specs */}
                               <div className="grid grid-cols-4 gap-4 text-sm pt-2 border-t border-white/5">
                                 <div>
                                   <p className="text-xs text-muted-foreground mb-0.5">Pieces/Bundle</p>
@@ -1112,6 +1216,7 @@ const ProductsTab = () => {
                               </div>
                             </>
                           )}
+
                         </div>
                       </div>
                     )}
@@ -1286,11 +1391,21 @@ const MovementTab = () => {
                   </p>
                 </div>
                 <p className="text-sm font-bold">{formatStockDisplay(selectedItem)}</p>
-                {(selectedItem.buy_rate ?? 0) > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    {selectedItem.current_stock.toLocaleString("en-IN")} {selectedItem.unit_of_measure} × {fmtRate(selectedItem.buy_rate!)} = {fmtRate(selectedItem.current_stock * selectedItem.buy_rate!)}
-                  </p>
-                )}
+                {(selectedItem.buy_rate ?? 0) > 0 || selectedItem.category === "Finished Good" ? (
+                  (() => {
+                    const vRate = getInventoryItemValuationRate(selectedItem);
+                    const { isFallback } = selectedItem.category === "Finished Good"
+                      ? getFinishedGoodValuationRate(selectedItem)
+                      : { isFallback: false };
+                    return vRate > 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        {selectedItem.current_stock.toLocaleString("en-IN")} {selectedItem.unit_of_measure} × {fmtRate(vRate)} = {fmtRate(selectedItem.current_stock * vRate)}
+                        {isFallback && <span className="ml-1.5 text-amber-400/70 italic">(Estimated from dealer price)</span>}
+                      </p>
+                    ) : null;
+                  })()
+                ) : null}
+
               </div>
             )}
           </div>

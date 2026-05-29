@@ -33,7 +33,8 @@ import type {
   ProductType,
   ProductProfile,
 } from "@/data/inventory";
-import { formatStockDisplay, getConversionFactor, purchaseToValuation } from "@/data/inventory";
+import { formatStockDisplay, getConversionFactor, purchaseToValuation, getInventoryItemValuationRate } from "@/data/inventory";
+
 
 // ── [FIX-CAT] Corrected + extended item categories ────────────────────────
 // ⚠️  The DB check constraint must be updated to include Chemical + Trading Goods.
@@ -146,6 +147,8 @@ function attachUserId<T extends object>(payload: T, userId: string): T & { user_
  *   Finished Good:             "120 BDL"
  */
 export { formatStockDisplay } from "@/data/inventory";
+export { getInventoryItemValuationRate, getFinishedGoodValuationRate, getTotalWeightInStock, getTotalInventoryWeight } from "@/data/inventory";
+
 
 /**
  * Converts a quantity entered in purchase units to the valuation unit.
@@ -232,7 +235,8 @@ export const getTransactions = async (limit = 300): Promise<InventoryTransaction
 export const getStockSummary = async (periodStart?: string): Promise<StockSummary> => {
   const { data, error } = await supabase
     .from("inventory_items")
-    .select("id, current_stock, buy_rate, minimum_reorder_level");
+    .select("id, current_stock, buy_rate, minimum_reorder_level, category, profile_data");
+
 
   if (error) {
     return {
@@ -248,13 +252,14 @@ export const getStockSummary = async (periodStart?: string): Promise<StockSummar
 
   const items = (data ?? []) as (Pick<
     InventoryItem,
-    "current_stock" | "buy_rate" | "minimum_reorder_level"
+    "current_stock" | "buy_rate" | "minimum_reorder_level" | "category" | "profile_data"
   > & { id: string })[];
 
   const closingStockValue = items.reduce(
-    (sum, item) => sum + item.current_stock * (item.buy_rate ?? 0),
+    (sum, item) => sum + item.current_stock * getInventoryItemValuationRate(item as any),
     0
   );
+
 
   const lowStockCount = items.filter(
     (item) => item.current_stock <= item.minimum_reorder_level
@@ -289,8 +294,9 @@ export const getStockSummary = async (periodStart?: string): Promise<StockSummar
       openingStockValue = items.reduce((sum, item) => {
         const adj = adjustments.get(item.id) ?? 0;
         const openingQty = Math.max(0, item.current_stock + adj);
-        return sum + openingQty * (item.buy_rate ?? 0);
+        return sum + openingQty * getInventoryItemValuationRate(item as any);
       }, 0);
+
     }
   }
 

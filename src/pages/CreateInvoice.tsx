@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { getAllInvoices, saveInvoice, getNextInvoiceNo } from "@/data/invoiceStore";
 import { Invoice } from "@/data/invoiceStore";
 import { getCustomers, upsertCustomer, CustomerRecord } from "@/data/customerStore";
+import { getProducts, ProductRecord } from "@/data/productStore";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,7 +21,10 @@ import {
 } from "@/lib/invoiceConstants";
 
 // ── Product catalog ────────────────────────────────────────────
-const PRODUCTS = [
+// Products are now loaded from Supabase via productStore.
+// The LEGACY_PRODUCTS fallback is used ONLY if Supabase returns zero
+// rows (e.g. migration not yet run). Remove after verifying migration.
+const LEGACY_PRODUCTS = [
   { name: '1/2" (13mm) Garden Pipe',          rate: 1125.00 },
   { name: '1/2" GARDEN PIPE',                 rate: 1125.00 },
   { name: '1/2" ECO + GARDEN PIPE',           rate: 1125.00 },
@@ -129,11 +133,56 @@ const CreateInvoice = () => {
   const [customerMaster, setCustomerMaster] = useState<CustomerRecord[]>([]);
   const [customersLoading, setCustomersLoading] = useState(true);
 
+  // ── Product master from Supabase ──────────────────────────────
+  const [productMaster, setProductMaster] = useState<ProductRecord[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+
   useEffect(() => {
     getCustomers()
       .then(setCustomerMaster)
       .catch(err => console.error("[CreateInvoice] getCustomers failed:", err))
       .finally(() => setCustomersLoading(false));
+  }, []);
+
+  // Load products from Supabase; fall back to legacy list if migration not yet run
+  useEffect(() => {
+    getProducts()
+      .then(rows => {
+        if (rows.length > 0) {
+          setProductMaster(rows);
+        } else {
+          // Safety fallback — remove after verifying migration
+          console.warn("[CreateInvoice] No products in Supabase — using LEGACY_PRODUCTS fallback");
+          setProductMaster(
+            LEGACY_PRODUCTS.map((p, i) => ({
+              id:           `legacy-${i}`,
+              user_id:      "",
+              product_code: `LEGACY-${String(i + 1).padStart(4, "0")}`,
+              product_name: p.name,
+              rate:         p.rate,
+              uom:          "BDL",
+              status:       "active" as const,
+              created_at:   "",
+            }))
+          );
+        }
+      })
+      .catch(err => {
+        console.error("[CreateInvoice] getProducts failed — using LEGACY_PRODUCTS fallback:", err);
+        setProductMaster(
+          LEGACY_PRODUCTS.map((p, i) => ({
+            id:           `legacy-${i}`,
+            user_id:      "",
+            product_code: `LEGACY-${String(i + 1).padStart(4, "0")}`,
+            product_name: p.name,
+            rate:         p.rate,
+            uom:          "BDL",
+            status:       "Active" as const,
+            created_at:   "",
+          }))
+        );
+      })
+      .finally(() => setProductsLoading(false));
   }, []);
 
   const urlCustomerName = decodeURIComponent(params.get("customer") ?? "");
@@ -203,7 +252,7 @@ const CreateInvoice = () => {
       if (li.id !== id) return li;
       const u: LineItem = { ...li, [key]: val };
       if (key === "productDescription" && val !== "__custom__") {
-        const p = PRODUCTS.find(p => p.name === val);
+        const p = productMaster.find(p => p.product_name === val);
         if (p) { u.rateInclTax = p.rate; }
       }
       const qty  = Number(u.quantity)    || 0;
@@ -564,7 +613,17 @@ const CreateInvoice = () => {
                             <SelectValue placeholder="Select product…" />
                           </SelectTrigger>
                           <SelectContent>
-                            {PRODUCTS.map(p => <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>)}
+                            {productsLoading ? (
+                              <SelectItem value="__loading__" disabled>Loading products…</SelectItem>
+                            ) : productMaster.length === 0 ? (
+                              <SelectItem value="__empty__" disabled>No products found</SelectItem>
+                            ) : (
+                              productMaster.map(p => (
+                                <SelectItem key={p.id} value={p.product_name}>
+                                  {p.product_name}
+                                </SelectItem>
+                              ))
+                            )}
                             <SelectItem value="__custom__">Custom…</SelectItem>
                           </SelectContent>
                         </Select>

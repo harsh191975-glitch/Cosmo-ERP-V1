@@ -74,6 +74,12 @@ export interface FinishedGoodsProfile {
   dealer_discount_pct: number;
   /** Computed: mrp × (1 − dealer_discount_pct / 100) */
   net_dealer_price: number;
+  /**
+   * Production / purchase cost per bundle — used for inventory valuation.
+   * Mirrored into InventoryItem.buy_rate so all existing WAC formulas work.
+   * If null/0 for legacy records, the UI falls back to net_dealer_price.
+   */
+  valuation_rate: number;
   /** Weight of one bundle in KG */
   bundle_weight: number;
   /** Number of pipe pieces per bundle */
@@ -297,4 +303,88 @@ export interface StockMutationResult {
   success: boolean;
   newStock: number;
   error?: string;
+}
+
+// ── Valuation helpers ─────────────────────────────────────────────
+
+/**
+ * Returns the effective valuation rate for a Finished Good item.
+ *
+ * Priority chain (migration-safe):
+ *   1. item.buy_rate  — set after the fix is deployed
+ *   2. profile_data.valuation_rate — redundant store in JSONB
+ *   3. net_dealer_price — legacy fallback for old records
+ *
+ * Returns 0 only when none of the above are available.
+ */
+export function getFinishedGoodValuationRate(
+  item: Pick<InventoryItem, "buy_rate" | "profile_data">
+): { rate: number; isFallback: boolean } {
+  if ((item.buy_rate ?? 0) > 0) {
+    return { rate: item.buy_rate!, isFallback: false };
+  }
+  const pd = item.profile_data as FinishedGoodsProfile | null;
+  if (pd?.valuation_rate && pd.valuation_rate > 0) {
+    return { rate: pd.valuation_rate, isFallback: false };
+  }
+  // Migration fallback — use net_dealer_price as temporary estimate
+  if (pd?.net_dealer_price && pd.net_dealer_price > 0) {
+    return { rate: pd.net_dealer_price, isFallback: true };
+  }
+  return { rate: 0, isFallback: false };
+}
+
+/**
+ * Returns the effective valuation rate for any inventory item.
+ *
+ * • For Finished Goods, delegates to getFinishedGoodValuationRate().
+ * • For all other types, uses buy_rate directly (already correct).
+ *
+ * Use this everywhere instead of bare `item.buy_rate` so Finished Goods
+ * are never excluded from inventory valuation calculations.
+ */
+export function getInventoryItemValuationRate(
+  item: Pick<InventoryItem, "buy_rate" | "profile_data" | "category">
+): number {
+  if (item.category === "Finished Good") {
+    return getFinishedGoodValuationRate(item).rate;
+  }
+  return item.buy_rate ?? 0;
+}
+
+/**
+ * Returns total weight in stock for a Finished Good (BDL × KG/BDL).
+ * Returns null for non-Finished Good items or when bundle_weight is missing.
+ */
+export function getTotalWeightInStock(
+  item: Pick<InventoryItem, "category" | "current_stock" | "profile_data">
+): number | null {
+  if (item.category !== "Finished Good") return null;
+  const pd = item.profile_data as FinishedGoodsProfile | null;
+  const bw = pd?.bundle_weight ?? 0;
+  if (bw <= 0 || item.current_stock <= 0) return null;
+  return item.current_stock * bw;
+}
+
+/**
+ * Computes total inventory weight across all items.
+ *
+ * Formula:
+ *   Σ Raw Material  current_stock          (already in KG)
+ * + Σ Finished Good current_stock × bundle_weight  (BDL → KG)
+ *
+ * Chemicals (Litres), Packaging, and Trading Goods are excluded
+ * because no reliable density/weight conversion is available.
+ */
+export function getTotalInventoryWeight(items: InventoryItem[]): number {
+  return items.reduce((total, item) => {
+    if (item.category === "Raw Material") {
+      return total + item.current_stock;
+    }
+    if (item.category === "Finished Good") {
+      const w = getTotalWeightInStock(item);
+      return total + (w ?? 0);
+    }
+    return total;
+  }, 0);
 }

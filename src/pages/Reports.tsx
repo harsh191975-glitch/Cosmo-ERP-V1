@@ -4,7 +4,7 @@ import { getAllInvoices, getAllPayments } from "@/data/invoiceStore";
 import { getCreditTotalsForInvoices } from "@/data/creditNoteStore";
 import { getPurchases } from "@/data/purchaseStore";
 import { getActiveSession } from "@/data/authStore";
-import { getItems, getTransactions } from "@/data/inventoryStore";
+import { getItems, getTransactions, getInventoryItemValuationRate } from "@/data/inventoryStore";
 import { runEnterpriseEngine } from "@/engine/financialEngine";
 import { getExpenses, ExpenseRow } from "@/data/expenseStore";
 import { Card } from "@/components/ui/card";
@@ -1601,8 +1601,10 @@ const PnLReport = () => {
 
   // Closing stock value for formula card — engine uses getStockSummary for actual COGS,
   // this local value is ONLY for rendering the formula breakdown UI card.
+  // Uses getInventoryItemValuationRate so Finished Goods (valuation_rate → buy_rate) are included.
   const closingStockValue = invItems.reduce((s: number, item: any) =>
-    s + (item.current_stock * (item.buy_rate ?? 0)), 0);
+    s + (item.current_stock * (getInventoryItemValuationRate(item))), 0);
+
 
   const hasInventoryData = invItems.length > 0;
 
