@@ -1,6 +1,6 @@
 /**
- * PurchaseDetail.tsx — matched to InvoiceDetail spacing exactly
- * All logic/calculations/print/delete unchanged. Only render updated.
+ * PurchaseDetail.tsx — Business-focused purchase detail view
+ * Each card provides unique information. No duplication across sections.
  */
 
 import { useEffect, useState, useCallback } from "react";
@@ -8,20 +8,28 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
   getPurchaseById,
   getPurchaseLineItems,
+  getSupplierById,
   deletePurchase,
   type Purchase,
   type PurchaseLineItem,
+  type PurchaseSupplierRecord,
 } from "@/data/purchaseStore";
 import {
   ArrowLeft, Printer, Trash2, RefreshCw,
   AlertCircle, XCircle, ShoppingCart,
   Building2, Package, FlaskConical,
+  Layers, MapPin, Phone,
+  Hash, CalendarDays, Clock, StickyNote,
+  Star, Scale, BadgePercent, ExternalLink,
 } from "lucide-react";
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
 const fmt = (n: number) =>
   "₹" + (n ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const fmtQty = (n: number) =>
+  n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 3 });
 
 const fmtDate = (d: string) => {
   if (!d) return "—";
@@ -123,8 +131,8 @@ const PurchasePrintView = ({
           </tr>
           <tr>
             <td style={{ ...td }}><div style={{ fontSize: "9px" }}>Category</div><div>{purchase.category}</div></td>
-            <td style={{ ...td }}><div style={{ fontSize: "9px" }}>Source</div><div>{purchase.source}</div></td>
             <td style={{ ...td }}><div style={{ fontSize: "9px" }}>Notes</div><div>{(purchase as any).notes || "—"}</div></td>
+            <td style={{ ...td }}><div style={{ fontSize: "9px" }}>Total GST</div><div>{fmt(totalGst)}</div></td>
           </tr>
         </tbody>
       </table>
@@ -176,6 +184,168 @@ const DEFAULT_CATEGORY_CFG = { color: "text-blue-400", bg: "bg-blue-950/50", bor
 const catLabel = (cat: string) =>
   cat === "raw-materials" ? "Raw Materials" : cat === "packaging" ? "Packaging" : cat;
 
+// ── Shared stat row ───────────────────────────────────────────────────
+
+const StatRow = ({
+  label, value, valueClass = "",
+}: {
+  label: string;
+  value: string | React.ReactNode;
+  valueClass?: string;
+}) => (
+  <div className="flex items-center justify-between text-sm gap-2">
+    <span className="text-muted-foreground shrink-0">{label}</span>
+    <span className={`font-medium text-right ${valueClass}`}>{value}</span>
+  </div>
+);
+
+// ── Supplier Card — contact info only (history belongs on Supplier Profile) ──
+
+const SupplierCard = ({
+  purchase, supplier, supplierId,
+}: {
+  purchase: Purchase;
+  supplier: PurchaseSupplierRecord | null;
+  supplierId: string;
+}) => {
+  const navigate = useNavigate();
+  const location = [supplier?.city, supplier?.state].filter(Boolean).join(", ");
+  const hasContactInfo = supplier?.mobile || location || supplier?.gstin;
+
+  return (
+    <div className="rounded-xl border border-border p-5 space-y-4">
+      {/* Header */}
+      <div className="flex items-start gap-3">
+        <div className="flex items-center justify-center rounded-xl w-10 h-10 bg-blue-500/10 shrink-0 mt-0.5">
+          <Building2 className="h-5 w-5 text-blue-400" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-bold text-foreground leading-tight">{purchase.supplier_name}</p>
+          {supplier?.gstin && (
+            <p className="text-xs text-muted-foreground font-mono mt-0.5 tracking-wide">{supplier.gstin}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Contact & location — only rendered when data exists */}
+      {hasContactInfo && (
+        <div className="space-y-2">
+          {supplier?.mobile && (
+            <div className="flex items-center gap-2">
+              <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="text-foreground font-mono text-xs">{supplier.mobile}</span>
+            </div>
+          )}
+          {location && (
+            <div className="flex items-center gap-2">
+              <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="text-muted-foreground text-xs">{location}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* View Supplier Profile link — only rendered when supplierId is a valid UUID */}
+      {supplierId && (
+        <button
+          onClick={() => navigate(`/purchases/suppliers/${supplierId}`)}
+          className="flex items-center gap-1.5 text-xs text-primary/70 hover:text-primary transition-colors group"
+        >
+          <ExternalLink className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
+          View Supplier Profile
+        </button>
+      )}
+    </div>
+  );
+};
+
+// ── Additional Details Card (Option A) — unique info not shown elsewhere ──
+
+const AdditionalDetailsCard = ({
+  purchase, lineItems,
+}: {
+  purchase: Purchase & { freight?: number; created_at?: string; updated_at?: string };
+  lineItems: PurchaseLineItem[];
+}) => {
+  const isPackaging = purchase.category === "packaging";
+  const freight = purchase.freight ?? 0;
+
+  // Total quantity — summed across all line items
+  const totalQty = lineItems.reduce((s, li) => s + li.quantity, 0);
+
+  // Dominant UOM (highest total qty)
+  const uomTotals: Record<string, number> = {};
+  lineItems.forEach(li => {
+    uomTotals[li.unit_of_measure] = (uomTotals[li.unit_of_measure] ?? 0) + li.quantity;
+  });
+  const dominantUom = Object.entries(uomTotals).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+
+  // Weighted average rate = total taxable / total qty
+  const avgRate = totalQty > 0
+    ? lineItems.reduce((s, li) => s + li.rate * li.quantity, 0) / totalQty
+    : 0;
+
+  const hasAuditInfo = (purchase as any).created_at;
+
+  return (
+    <div className="rounded-xl border border-border p-5 space-y-3">
+      <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-muted/40">
+          <Scale className="h-3.5 w-3.5 text-muted-foreground" />
+        </div>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          {isPackaging ? "Quantity & Cost" : "Quantity & Cost"}
+        </p>
+      </div>
+
+      {/* Qty & Rate — unique values not in Financial Summary */}
+      {totalQty > 0 && (
+        <StatRow
+          label="Total Qty Purchased"
+          value={`${fmtQty(totalQty)} ${dominantUom}`}
+        />
+      )}
+      {avgRate > 0 && (
+        <div className="flex items-start justify-between text-sm gap-2">
+          <span className="text-muted-foreground shrink-0">Avg Rate</span>
+          <div className="text-right">
+            <span className="font-medium">{fmt(avgRate)}</span>
+            {dominantUom && (
+              <span className="text-xs text-muted-foreground ml-1">/ {dominantUom}</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Freight — only if present */}
+      {freight > 0 && (
+        <StatRow
+          label="Freight / Cartage"
+          value={fmt(freight)}
+          valueClass="text-purple-400"
+        />
+      )}
+
+      {/* Audit info — creation and last update timestamps */}
+      {hasAuditInfo && (
+        <div className="border-t border-border/50 pt-3 space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Audit</p>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <CalendarDays className="h-3 w-3 shrink-0" />
+            <span>Created {fmtDatetime((purchase as any).created_at)}</span>
+          </div>
+          {(purchase as any).updated_at && (purchase as any).updated_at !== (purchase as any).created_at && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Clock className="h-3 w-3 shrink-0" />
+              <span>Updated {fmtDatetime((purchase as any).updated_at)}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Main Page ─────────────────────────────────────────────────────────
 
 const PurchaseDetail = () => {
@@ -184,6 +354,7 @@ const PurchaseDetail = () => {
 
   const [purchase,  setPurchase]  = useState<Purchase | null>(null);
   const [lineItems, setLineItems] = useState<PurchaseLineItem[]>([]);
+  const [supplier,  setSupplier]  = useState<PurchaseSupplierRecord | null>(null);
   const [loading,   setLoading]   = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deleting,  setDeleting]  = useState(false);
@@ -194,7 +365,11 @@ const PurchaseDetail = () => {
     try {
       const [p, items] = await Promise.all([getPurchaseById(id), getPurchaseLineItems(id)]);
       if (!p) { setLoadError("not_found"); setLoading(false); return; }
-      setPurchase(p); setLineItems(items);
+      setPurchase(p);
+      setLineItems(items);
+
+      // Fetch supplier details non-blocking (only contact info needed)
+      getSupplierById(p.supplier_id).catch(() => null).then(sup => setSupplier(sup));
     } catch (err) {
       console.error("[PurchaseDetail] fetchPurchase:", err);
       setLoadError("fetch_error");
@@ -239,11 +414,12 @@ const PurchaseDetail = () => {
   );
 
   // ── Derived values ────────────────────────────────────────────────
-  const p            = purchase as Purchase & { freight?: number; notes?: string; created_at?: string };
+  const p            = purchase as Purchase & { freight?: number; notes?: string; created_at?: string; updated_at?: string };
   const catCfg       = CATEGORY_CONFIG[p.category] ?? DEFAULT_CATEGORY_CFG;
   const CategoryIcon = catCfg.Icon;
   const freight      = p.freight ?? 0;
   const totalGst     = p.cgst + p.sgst + p.igst;
+  const notes        = (p as any).notes as string | undefined;
 
   // ── Render ────────────────────────────────────────────────────────
   return (
@@ -254,7 +430,7 @@ const PurchaseDetail = () => {
         <PurchasePrintView purchase={p} lineItems={lineItems} />
       </div>
 
-      {/* Header — identical structure to InvoiceDetail */}
+      {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate("/purchases")}
@@ -270,6 +446,7 @@ const PurchaseDetail = () => {
             <CategoryIcon className="h-3 w-3" />{catLabel(p.category)}
           </span>
         </div>
+        {/* Top-right actions only */}
         <div className="flex items-center gap-2">
           <button onClick={handlePrint}
             className="flex items-center gap-1.5 h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
@@ -283,51 +460,39 @@ const PurchaseDetail = () => {
         </div>
       </div>
 
-      {/* Main content — same grid as InvoiceDetail: grid-cols-3, col-span-2 + 1 */}
+      {/* ── Main Grid ── */}
       <div className="grid grid-cols-3 gap-4">
 
-        {/* Left: col-span-2 */}
+        {/* ── Left: col-span-2 ── */}
         <div className="col-span-2 space-y-4">
 
-          {/* Supplier + Purchase Details — same as Bill To + Invoice Details */}
+          {/* Supplier + Purchase Details row */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-xl border border-border p-5 space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Supplier</p>
-              <div className="flex items-center gap-2.5">
-                <div className="flex items-center justify-center rounded-lg w-8 h-8 bg-blue-500/10 shrink-0">
-                  <Building2 className="h-4 w-4 text-blue-400" />
-                </div>
-                <div>
-                  <p className="font-bold text-foreground">{p.supplier_name}</p>
-                  <p className="text-xs text-muted-foreground">{p.source || "manual"}</p>
-                </div>
-              </div>
-              {(p as any).notes && (
-                <p className="text-xs text-muted-foreground/70 italic mt-2 pt-2 border-t border-border leading-relaxed">
-                  {(p as any).notes}
-                </p>
-              )}
-            </div>
 
+            {/* Supplier card — contact info only */}
+            <SupplierCard
+              purchase={p}
+              supplier={supplier}
+              supplierId={p.supplier_id}
+            />
+
+            {/* Purchase Details */}
             <div className="rounded-xl border border-border p-5 space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Purchase Details</p>
-              {[
-                ["Invoice No.", p.invoice_no],
-                ["Date",        fmtDate(p.purchase_date)],
-                ["Category",    catLabel(p.category)],
-                ["Source",      p.source || "manual"],
-                ...(freight > 0 ? [["Freight", fmt(freight)]] : []),
-                ...((p as any).created_at ? [["Created", fmtDatetime((p as any).created_at)]] : []),
-              ].map(([k, v]) => (
-                <div key={k} className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{k}</span>
-                  <span className="font-medium font-mono text-xs">{v}</span>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-muted/40">
+                  <Hash className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
-              ))}
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Purchase Details
+                </p>
+              </div>
+              <StatRow label="Invoice No." value={p.invoice_no} />
+              <StatRow label="Purchase Date" value={fmtDate(p.purchase_date)} />
+              <StatRow label="Category" value={catLabel(p.category)} />
             </div>
           </div>
 
-          {/* Line Items */}
+          {/* Line Items table */}
           <div className="rounded-xl border border-border overflow-hidden">
             <div className="px-5 py-3 border-b border-border bg-muted/20 flex items-center justify-between">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -409,18 +574,25 @@ const PurchaseDetail = () => {
 
         </div>{/* end col-span-2 */}
 
-        {/* Right sidebar — same as InvoiceDetail sidebar */}
+        {/* ── Right Sidebar ── */}
         <div className="space-y-4">
 
           {/* Financial Summary */}
           <div className="rounded-xl border border-border p-5 space-y-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Financial Summary</p>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-muted/40">
+                <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+              </div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Financial Summary
+              </p>
+            </div>
             {[
               { label: "Taxable Amount", value: p.taxable_amount, color: "" },
               ...(p.cgst  > 0 ? [{ label: "CGST",    value: p.cgst,   color: "text-amber-400"  }] : []),
               ...(p.sgst  > 0 ? [{ label: "SGST",    value: p.sgst,   color: "text-amber-400"  }] : []),
               ...(p.igst  > 0 ? [{ label: "IGST",    value: p.igst,   color: "text-orange-400" }] : []),
-              ...(freight > 0 ? [{ label: "Freight",  value: freight,  color: "text-purple-400" }] : []),
+              ...(freight > 0 ? [{ label: "Freight / Cartage", value: freight, color: "text-purple-400" }] : []),
             ].map(({ label, value, color }) => (
               <div key={label} className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">{label}</span>
@@ -433,40 +605,29 @@ const PurchaseDetail = () => {
             </div>
           </div>
 
-          {/* Purchase Info */}
-          <div className="rounded-xl border border-border p-5 space-y-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Purchase Info</p>
-            {[
-              ["Purchase ID", p.id.slice(0, 8) + "…"],
-              ["Supplier ID", p.supplier_id.slice(0, 8) + "…"],
-              ["Line Items",  String(lineItems.length)],
-              ...((p as any).created_at ? [["Created", fmtDate((p as any).created_at)]] : []),
-            ].map(([k, v]) => (
-              <div key={k} className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">{k}</span>
-                <span className="tabular-nums font-mono text-xs text-muted-foreground">{v}</span>
+          {/* Additional Details — unique qty/cost/audit info not shown elsewhere */}
+          <AdditionalDetailsCard purchase={p} lineItems={lineItems} />
+
+          {/* Notes — shown only when notes exist */}
+          {notes && notes.trim().length > 0 && (
+            <div className="rounded-xl border border-border p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-muted/40">
+                  <StickyNote className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Notes</p>
               </div>
-            ))}
-          </div>
+              <p className="text-sm leading-relaxed text-foreground/80 italic">{notes}</p>
+            </div>
+          )}
 
           {/* Amount in Words */}
           <div className="rounded-xl border border-border p-4">
-            <p className="text-xs text-muted-foreground mb-2">Amount in Words</p>
+            <div className="flex items-center gap-1.5 mb-2">
+              <Star className="h-3 w-3 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">Amount in Words</p>
+            </div>
             <p className="text-xs leading-relaxed italic">{numberToWords(p.total_amount)}</p>
-          </div>
-
-          {/* Actions */}
-          <div className="rounded-xl border border-border p-4 space-y-2">
-            <button onClick={handlePrint}
-              className="w-full flex items-center justify-center gap-2 h-9 rounded-lg border border-border text-sm text-foreground/70 hover:bg-muted/40 transition-colors">
-              <Printer className="h-3.5 w-3.5" /> Print / Save PDF
-            </button>
-            <button onClick={handleDelete} disabled={deleting}
-              className="w-full flex items-center justify-center gap-2 h-9 rounded-lg border border-red-700/40 text-red-400 text-sm hover:bg-red-950/20 transition-colors disabled:opacity-40">
-              {deleting
-                ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Deleting…</>
-                : <><Trash2 className="h-3.5 w-3.5" /> Delete Purchase</>}
-            </button>
           </div>
 
         </div>{/* end sidebar */}
