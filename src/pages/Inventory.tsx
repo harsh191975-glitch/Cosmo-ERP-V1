@@ -424,12 +424,12 @@ const Field = ({ label, hint, children, span = 1 }: { label: string; hint?: stri
   </div>
 );
 
-const FInput = ({ value, onChange, placeholder = "", type = "text", min, step, className = "" }: {
+const FInput = ({ value, onChange, placeholder = "", type = "text", min, max, step, className = "" }: {
   value: string; onChange: (v: string) => void;
-  placeholder?: string; type?: string; min?: string; step?: string; className?: string;
+  placeholder?: string; type?: string; min?: string; max?: string; step?: string; className?: string;
 }) => (
   <Input
-    type={type} min={min} step={step}
+    type={type} min={min} max={max} step={step}
     className={`h-9 text-sm bg-muted/20 border-border/60 focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all ${className}`}
     placeholder={placeholder}
     value={value}

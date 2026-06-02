@@ -38,30 +38,25 @@ const SpinnerIcon = () => (
 )
 
 // ─── COSMO Logo Mark ─────────────────────────────────────────────────────────
+// 270° arc CCW: small dot bottom-left (135°) → large dot top-right (-45°)
+// Gap is 90° on the right side. Centre open ring.
 
+// COSMO Mark v1 — canonical geometry
+// R=40, SW=8, axis 38° from vertical (TR=308°, BL=128°), arc=130°, gap=50°
 const CosmoLogo = () => (
-  <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="26" cy="26" r="25" stroke="url(#logoRing)" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.4" />
-    <circle cx="26" cy="26" r="16" stroke="url(#logoRing2)" strokeWidth="1.5" opacity="0.6" />
-    <circle cx="26" cy="26" r="7" fill="url(#logoDot)" />
-    {/* Orbital dots */}
-    <circle cx="26" cy="10" r="2.5" fill="#60a5fa" />
-    <circle cx="42" cy="26" r="2" fill="#a78bfa" opacity="0.8" />
-    <circle cx="14" cy="38" r="1.5" fill="#34d399" opacity="0.7" />
-    <defs>
-      <linearGradient id="logoRing" x1="0" y1="0" x2="52" y2="52">
-        <stop stopColor="#3b82f6" />
-        <stop offset="1" stopColor="#8b5cf6" />
-      </linearGradient>
-      <linearGradient id="logoRing2" x1="0" y1="0" x2="52" y2="52">
-        <stop stopColor="#60a5fa" />
-        <stop offset="1" stopColor="#a78bfa" />
-      </linearGradient>
-      <radialGradient id="logoDot" cx="50%" cy="50%" r="50%">
-        <stop stopColor="#3b82f6" />
-        <stop offset="1" stopColor="#7c3aed" />
-      </radialGradient>
-    </defs>
+  <svg width="68" height="68" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    {/* Arc 1 — lower-left, 153°→283°, 130° CW */}
+    <path d="M 14.35974 68.15962 A 40 40 0 0 1 58.99804 11.02520"
+      stroke="#2563EB" strokeWidth="8" strokeLinecap="round" fill="none"/>
+    {/* Arc 2 — upper-right, 333°→103°, 130° CW */}
+    <path d="M 85.64026 31.84038 A 40 40 0 0 1 41.00196 88.97480"
+      stroke="#2563EB" strokeWidth="8" strokeLinecap="round" fill="none"/>
+    {/* Center ring — r_mid=6.667, stroke=8 */}
+    <circle cx="50" cy="50" r="6.66667" stroke="#2563EB" strokeWidth="8" fill="none"/>
+    {/* Node TR — 308° */}
+    <circle cx="74.62646" cy="18.47957" r="2.66667" stroke="#2563EB" strokeWidth="8" fill="none"/>
+    {/* Node BL — 128° */}
+    <circle cx="25.37354" cy="81.52043" r="2.66667" stroke="#2563EB" strokeWidth="8" fill="none"/>
   </svg>
 )
 
@@ -130,12 +125,12 @@ export default function LoginCard({
           <CosmoLogo />
         </div>
         <span
-          className="text-2xl font-bold tracking-widest text-white"
-          style={{ letterSpacing: '0.18em', fontFamily: "'Trebuchet MS', sans-serif" }}
+          className="text-white"
+          style={{ fontFamily: "'Sora', sans-serif", fontWeight: 800, fontSize: '24px', letterSpacing: '6px', textTransform: 'uppercase' }}
         >
           COSMO
         </span>
-        <span className="text-xs mt-1" style={{ color: 'rgba(148,163,184,0.7)', fontStyle: 'italic', letterSpacing: '0.04em' }}>
+        <span className="text-xs mt-1" style={{ color: 'rgba(148,163,184,0.4)', fontFamily: "Georgia, serif", fontStyle: 'italic', letterSpacing: '0.03em' }}>
           by Harshvardhan Sharma
         </span>
       </div>

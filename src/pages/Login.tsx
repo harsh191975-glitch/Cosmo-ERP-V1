@@ -35,16 +35,21 @@ const GlobalStyles = () => (
       background: linear-gradient(180deg, rgba(2,5,16,0.62), rgba(2,5,16,0));
       backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
     }
-    .cn-brand { display: flex; align-items: center; gap: 12px; }
+    .cn-brand { display: flex; align-items: center; gap: 10px; }
     .cn-wordmark { display: flex; flex-direction: column; line-height: 1; }
     .cn-wordmark-name {
       font-family: 'Sora', sans-serif; font-weight: 800;
-      font-size: 22px; letter-spacing: 0.18em; color: #fff; text-transform: uppercase;
+      font-size: 20px; letter-spacing: 6px; color: #fff; text-transform: uppercase;
+    }
+    .cn-wordmark-sub {
+      font-family: 'Sora', sans-serif; font-weight: 300;
+      font-size: 8px; letter-spacing: 0.28em; text-transform: uppercase;
+      color: rgba(96,165,250,0.5); margin-top: 2px;
     }
     .cn-wordmark-by {
-      font-family: 'Cormorant Garamond', Georgia, serif;
-      font-style: italic; font-weight: 300; font-size: 10.5px;
-      color: rgba(148,163,184,0.5); letter-spacing: 0.05em; margin-top: 3px;
+      font-family: 'Georgia', serif;
+      font-style: italic; font-weight: 300; font-size: 9.5px;
+      color: rgba(148,163,184,0.4); letter-spacing: 0.03em; margin-top: 2px;
     }
     .cn-nav-cta {
       font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 600;
@@ -448,25 +453,15 @@ const Navbar = ({ onEnter }: { onEnter: () => void }) => (
   <nav className="cn-nav">
     {/* Brand */}
     <div className="cn-brand">
-      {/* Logo mark */}
-      <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
-        <circle cx="19" cy="19" r="17.5" stroke="url(#lm1)" strokeWidth="1.2" strokeDasharray="3 2.5" opacity="0.5"/>
-        <circle cx="19" cy="19" r="11"   stroke="url(#lm2)" strokeWidth="1.2" opacity="0.72"/>
-        <circle cx="19" cy="19" r="5"    fill="url(#lm3)"/>
-        <circle cx="19" cy="3"  r="2.5"  fill="#60a5fa"/>
-        <circle cx="32" cy="27" r="1.8"  fill="#a78bfa" opacity="0.85"/>
-        <circle cx="8"  cy="30" r="1.5"  fill="#34d399" opacity="0.75"/>
-        <defs>
-          <linearGradient id="lm1" x1="0" y1="0" x2="38" y2="38">
-            <stop stopColor="#3b82f6"/><stop offset="1" stopColor="#8b5cf6"/>
-          </linearGradient>
-          <linearGradient id="lm2" x1="0" y1="0" x2="38" y2="38">
-            <stop stopColor="#60a5fa"/><stop offset="1" stopColor="#a78bfa"/>
-          </linearGradient>
-          <radialGradient id="lm3" cx="50%" cy="50%" r="50%">
-            <stop stopColor="#3b82f6"/><stop offset="1" stopColor="#7c3aed"/>
-          </radialGradient>
-        </defs>
+      {/* COSMO Mark v1 — R=40, SW=8, axis 38°, arc=130°, gap=50° */}
+      <svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 14.35974 68.15962 A 40 40 0 0 1 58.99804 11.02520"
+          stroke="#2563EB" strokeWidth="8" strokeLinecap="round" fill="none"/>
+        <path d="M 85.64026 31.84038 A 40 40 0 0 1 41.00196 88.97480"
+          stroke="#2563EB" strokeWidth="8" strokeLinecap="round" fill="none"/>
+        <circle cx="50" cy="50" r="6.66667" stroke="#2563EB" strokeWidth="8" fill="none"/>
+        <circle cx="74.62646" cy="18.47957" r="2.66667" stroke="#2563EB" strokeWidth="8" fill="none"/>
+        <circle cx="25.37354" cy="81.52043" r="2.66667" stroke="#2563EB" strokeWidth="8" fill="none"/>
       </svg>
 
       <div className="cn-wordmark">

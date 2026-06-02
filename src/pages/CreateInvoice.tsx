@@ -163,6 +163,7 @@ const CreateInvoice = () => {
               uom:          "BDL",
               status:       "active" as const,
               created_at:   "",
+              updated_at:   "",
             }))
           );
         }
@@ -177,8 +178,9 @@ const CreateInvoice = () => {
             product_name: p.name,
             rate:         p.rate,
             uom:          "BDL",
-            status:       "Active" as const,
+            status:       "active" as const,
             created_at:   "",
+            updated_at:   "",
           }))
         );
       })

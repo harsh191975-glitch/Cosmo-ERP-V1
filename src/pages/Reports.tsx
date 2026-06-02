@@ -36,54 +36,508 @@ const parseDate = (dateStr: string): { year: number; month: number } | null => {
 
 const QUARTER_OF = (month: number) => Math.ceil(month / 3);
 
-// Date filter options
-const DATE_FILTER_OPTIONS = [
-  { value: "all",    label: "All Time" },
-  { value: "2025-12",label: "Dec 2025" },
-  { value: "2026-01",label: "Jan 2026" },
-  { value: "2026-02",label: "Feb 2026" },
-  { value: "2026-03",label: "Mar 2026" },
-  { value: "Q4-2025",label: "Q4 2025" },
-  { value: "Q1-2026",label: "Q1 2026" },
-  { value: "2025",   label: "FY 2025" },
-  { value: "2026",   label: "FY 2026" },
-];
+// ── matchesFilter ──────────────────────────────────────────────
+// Supports: "all", "YYYY-MM", "Q#-YYYY", "FY YYYY-YY",
+//           "today", "this-week", "this-month", "last-month",
+//           "custom:YYYY-MM-DD:YYYY-MM-DD"
+const matchesFilter = (d: { year: number; month: number } | null, filter: string, fullDateStr?: string): boolean => {
+  if (!d) return filter === "all";
+  if (filter === "all") return true;
 
-const matchesFilter = (d: { year: number; month: number } | null, filter: string): boolean => {
-  if (!d || filter === "all") return true;
+  // Quick filters — compare against today's local date
+  if (filter === "today" || filter === "this-week" || filter === "this-month" || filter === "last-month") {
+    const now = new Date();
+    const todayY = now.getFullYear();
+    const todayM = now.getMonth() + 1;
+    const todayD = now.getDate();
+    if (filter === "today") {
+      if (!fullDateStr) return d.year === todayY && d.month === todayM;
+      const parts = fullDateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (!parts) return false;
+      return parseInt(parts[1]) === todayY && parseInt(parts[2]) === todayM && parseInt(parts[3]) === todayD;
+    }
+    if (filter === "this-week") {
+      if (!fullDateStr) return d.year === todayY && d.month === todayM;
+      const rowDate = new Date(fullDateStr);
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+      return rowDate >= startOfWeek && rowDate <= endOfWeek;
+    }
+    if (filter === "this-month") return d.year === todayY && d.month === todayM;
+    if (filter === "last-month") {
+      const lm = todayM === 1 ? 12 : todayM - 1;
+      const ly = todayM === 1 ? todayY - 1 : todayY;
+      return d.year === ly && d.month === lm;
+    }
+  }
+
+  // Custom date range: "custom:2026-01-01:2026-03-31"
+  if (filter.startsWith("custom:")) {
+    const parts = filter.split(":");
+    if (parts.length === 3) {
+      const startStr = parts[1];
+      const endStr   = parts[2];
+      const startParts = startStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      const endParts   = endStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (startParts && endParts) {
+        const sy = parseInt(startParts[1]), sm = parseInt(startParts[2]), sd = parseInt(startParts[3]);
+        const ey = parseInt(endParts[1]),   em = parseInt(endParts[2]),   ed = parseInt(endParts[3]);
+        if (fullDateStr) {
+          const fp = fullDateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+          if (fp) {
+            const fy = parseInt(fp[1]), fm = parseInt(fp[2]), fd = parseInt(fp[3]);
+            const rowVal   = fy * 10000 + fm * 100 + fd;
+            const startVal = sy * 10000 + sm * 100 + sd;
+            const endVal   = ey * 10000 + em * 100 + ed;
+            return rowVal >= startVal && rowVal <= endVal;
+          }
+        }
+        const rowVal   = d.year * 100 + d.month;
+        const startVal = sy * 100 + sm;
+        const endVal   = ey * 100 + em;
+        return rowVal >= startVal && rowVal <= endVal;
+      }
+    }
+    return true;
+  }
+
+  // Quarter: "Q1-2026"
   if (filter.startsWith("Q")) {
     const [q, y] = filter.split("-");
-    const qNum = parseInt(q.replace("Q",""));
+    const qNum = parseInt(q.replace("Q", ""));
     return d.year === parseInt(y) && QUARTER_OF(d.month) === qNum;
   }
-  if (filter.length === 4) return d.year === parseInt(filter);
-  const [y, m] = filter.split("-");
-  return d.year === parseInt(y) && d.month === parseInt(m);
+
+  // Financial Year: "FY2025-26" → covers Apr 2025 – Mar 2026
+  if (filter.startsWith("FY")) {
+    const fyMatch = filter.match(/^FY(\d{4})-(\d{2})$/);
+    if (fyMatch) {
+      const startYear = parseInt(fyMatch[1]);
+      const endYear   = startYear + 1;
+      if (d.year === startYear && d.month >= 4) return true;
+      if (d.year === endYear   && d.month <= 3) return true;
+      return false;
+    }
+  }
+
+  // Exact month: "2026-01"
+  if (/^\d{4}-\d{2}$/.test(filter)) {
+    const [y, m] = filter.split("-");
+    return d.year === parseInt(y) && d.month === parseInt(m);
+  }
+
+  return true; // unknown — safe fallback
+};
+
+// ── Human-readable label for the active filter ─────────────────
+const filterLabel = (filter: string): string => {
+  if (filter === "all")        return "All Time";
+  if (filter === "today")      return "Today";
+  if (filter === "this-week")  return "This Week";
+  if (filter === "this-month") return "This Month";
+  if (filter === "last-month") return "Last Month";
+  if (filter.startsWith("custom:")) {
+    const parts = filter.split(":");
+    if (parts.length === 3) return `${parts[1]} → ${parts[2]}`;
+  }
+  if (filter.startsWith("Q")) {
+    const [q, y] = filter.split("-");
+    return `${q} ${y}`;
+  }
+  if (filter.startsWith("FY")) {
+    const m = filter.match(/^FY(\d{4})-(\d{2})$/);
+    if (m) return `FY ${m[1]}-${m[2]}`;
+  }
+  if (/^\d{4}-\d{2}$/.test(filter)) {
+    const [y, mo] = filter.split("-").map(Number);
+    return `${MONTH_NAMES[mo - 1].slice(0, 3)} ${y}`;
+  }
+  return filter;
+};
+
+// ── Dynamic filter option builder ─────────────────────────────
+// Derives available months, quarters, and financial years from real report data.
+const buildFilterOptions = (isoDates: string[]) => {
+  const ymSet = new Set<string>();
+  for (const d of isoDates) {
+    if (!d) continue;
+    const m = d.match(/^(\d{4})-(\d{1,2})/);
+    if (m) ymSet.add(`${m[1]}-${String(m[2]).padStart(2, "0")}`);
+  }
+
+  // Group months by year
+  const byYear = new Map<number, number[]>();
+  for (const ym of ymSet) {
+    const [y, mo] = ym.split("-").map(Number);
+    if (!byYear.has(y)) byYear.set(y, []);
+    byYear.get(y)!.push(mo);
+  }
+
+  // Quarters that actually have data
+  const quarterSet = new Set<string>();
+  for (const ym of ymSet) {
+    const [y, mo] = ym.split("-").map(Number);
+    quarterSet.add(`Q${QUARTER_OF(mo)}-${y}`);
+  }
+  const sortedQuarters = [...quarterSet].sort((a, b) => {
+    const [qa, ya] = a.split("-"); const [qb, yb] = b.split("-");
+    const diff = parseInt(yb) - parseInt(ya);
+    return diff !== 0 ? diff : parseInt(qb.slice(1)) - parseInt(qa.slice(1));
+  });
+
+  // Financial years (Apr–Mar) that have data
+  const fySet = new Set<string>();
+  for (const ym of ymSet) {
+    const [y, mo] = ym.split("-").map(Number);
+    const fyStart = mo >= 4 ? y : y - 1;
+    const fyEnd   = String(fyStart + 1).slice(2);
+    fySet.add(`FY${fyStart}-${fyEnd}`);
+  }
+  const sortedFY = [...fySet].sort((a, b) => {
+    const ma = a.match(/FY(\d{4})/); const mb = b.match(/FY(\d{4})/);
+    return ma && mb ? parseInt(mb[1]) - parseInt(ma[1]) : 0;
+  });
+
+  return { byYear, sortedQuarters, sortedFY };
 };
 
 // ── Shared Date Filter ─────────────────────────────────────────
-const DateFilter = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
-  <Select value={value} onValueChange={onChange}>
-    <SelectTrigger className="h-8 text-xs w-40">
-      <SelectValue placeholder="Period" />
-    </SelectTrigger>
-    <SelectContent>
-      {DATE_FILTER_OPTIONS.map(o => (
-        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-);
+// Scalable dropdown with Quick Filters, Custom Range, grouped Months, Quarters, FY.
+// `dates` is an array of ISO date strings sourced from the report's own data.
+const DateFilter = ({
+  value,
+  onChange,
+  dates = [],
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  dates?: string[];
+}) => {
+  const [open, setOpen] = React.useState(false);
+  const [customStart, setCustomStart] = React.useState("");
+  const [customEnd, setCustomEnd] = React.useState("");
+  const [expandedYears, setExpandedYears] = React.useState<Set<number>>(new Set());
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    if (open) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  // Auto-expand the year of the currently active month filter
+  React.useEffect(() => {
+    if (/^\d{4}-\d{2}$/.test(value)) {
+      const year = parseInt(value.split("-")[0]);
+      setExpandedYears(prev => new Set([...prev, year]));
+    }
+  }, [value]);
+
+  const { byYear, sortedQuarters, sortedFY } = React.useMemo(
+    () => buildFilterOptions(dates),
+    [dates]
+  );
+
+  const toggleYear = (year: number) =>
+    setExpandedYears(prev => {
+      const next = new Set(prev);
+      next.has(year) ? next.delete(year) : next.add(year);
+      return next;
+    });
+
+  const select = (v: string) => { onChange(v); setOpen(false); };
+
+  const applyCustom = () => {
+    if (customStart && customEnd && customStart <= customEnd) {
+      select(`custom:${customStart}:${customEnd}`);
+    }
+  };
+
+  const isActive = (v: string) => value === v;
+
+  const itemStyle = (active: boolean): React.CSSProperties => ({
+    display: "flex",
+    alignItems: "center",
+    width: "100%",
+    padding: "5px 12px",
+    fontSize: "12px",
+    cursor: "pointer",
+    borderRadius: "5px",
+    background: active ? "hsl(var(--primary)/0.12)" : "transparent",
+    color: active ? "hsl(var(--primary))" : "hsl(var(--foreground))",
+    fontWeight: active ? 600 : 400,
+    transition: "background 120ms ease",
+    textAlign: "left" as const,
+    border: "none",
+    outline: "none",
+  });
+
+  const sectionLabel: React.CSSProperties = {
+    padding: "8px 12px 4px",
+    fontSize: "10px",
+    fontWeight: 700,
+    letterSpacing: "0.07em",
+    textTransform: "uppercase" as const,
+    color: "hsl(var(--muted-foreground))",
+  };
+
+  const divider: React.CSSProperties = {
+    height: "1px",
+    background: "hsl(var(--border)/0.5)",
+    margin: "4px 0",
+  };
+
+  return (
+    <div ref={dropdownRef} style={{ position: "relative", display: "inline-block" }}>
+      {/* Trigger */}
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+          height: "32px",
+          padding: "0 10px",
+          fontSize: "12px",
+          fontWeight: 500,
+          borderRadius: "6px",
+          border: "1px solid hsl(var(--border)/0.7)",
+          background: "hsl(var(--background))",
+          color: "hsl(var(--foreground))",
+          cursor: "pointer",
+          minWidth: "140px",
+          justifyContent: "space-between",
+          boxShadow: open ? "0 0 0 2px hsl(var(--primary)/0.2)" : "none",
+          transition: "box-shadow 150ms ease",
+        }}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "110px" }}>
+          {filterLabel(value)}
+        </span>
+        <span style={{ fontSize: "10px", opacity: 0.5, flexShrink: 0 }}>{open ? "▲" : "▼"}</span>
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div style={{
+          position: "absolute",
+          right: 0,
+          top: "calc(100% + 6px)",
+          zIndex: 9999,
+          minWidth: "220px",
+          maxWidth: "260px",
+          borderRadius: "10px",
+          border: "1px solid hsl(var(--border)/0.7)",
+          background: "hsl(var(--popover))",
+          boxShadow: "0 8px 30px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15)",
+          overflow: "hidden",
+        }}>
+          <div style={{ maxHeight: "420px", overflowY: "auto", padding: "6px" }}>
+
+            {/* All Time */}
+            <button style={itemStyle(isActive("all"))} onClick={() => select("all")}>
+              All Time
+            </button>
+
+            <div style={divider} />
+
+            {/* Quick Filters */}
+            <p style={sectionLabel}>Quick Filters</p>
+            {([
+              { v: "today",      label: "Today" },
+              { v: "this-week",  label: "This Week" },
+              { v: "this-month", label: "This Month" },
+              { v: "last-month", label: "Last Month" },
+            ] as const).map(opt => (
+              <button key={opt.v} style={itemStyle(isActive(opt.v))} onClick={() => select(opt.v)}>
+                {opt.label}
+              </button>
+            ))}
+
+            <div style={divider} />
+
+            {/* Custom Date Range */}
+            <p style={sectionLabel}>Custom Range</p>
+            <div style={{ padding: "4px 12px 8px", display: "flex", flexDirection: "column", gap: "6px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                <label style={{ fontSize: "10px", color: "hsl(var(--muted-foreground))", fontWeight: 500 }}>Start Date</label>
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={e => setCustomStart(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "4px 8px",
+                    fontSize: "12px",
+                    borderRadius: "5px",
+                    border: "1px solid hsl(var(--border)/0.6)",
+                    background: "hsl(var(--background))",
+                    color: "hsl(var(--foreground))",
+                    outline: "none",
+                    boxSizing: "border-box" as const,
+                  }}
+                />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                <label style={{ fontSize: "10px", color: "hsl(var(--muted-foreground))", fontWeight: 500 }}>End Date</label>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={e => setCustomEnd(e.target.value)}
+                  min={customStart || undefined}
+                  style={{
+                    width: "100%",
+                    padding: "4px 8px",
+                    fontSize: "12px",
+                    borderRadius: "5px",
+                    border: "1px solid hsl(var(--border)/0.6)",
+                    background: "hsl(var(--background))",
+                    color: "hsl(var(--foreground))",
+                    outline: "none",
+                    boxSizing: "border-box" as const,
+                  }}
+                />
+              </div>
+              <button
+                onClick={applyCustom}
+                disabled={!customStart || !customEnd || customStart > customEnd}
+                style={{
+                  padding: "5px 10px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  borderRadius: "5px",
+                  border: "none",
+                  background: customStart && customEnd && customStart <= customEnd
+                    ? "hsl(var(--primary))"
+                    : "hsl(var(--muted)/0.5)",
+                  color: customStart && customEnd && customStart <= customEnd
+                    ? "hsl(var(--primary-foreground))"
+                    : "hsl(var(--muted-foreground))",
+                  cursor: customStart && customEnd && customStart <= customEnd ? "pointer" : "not-allowed",
+                  transition: "background 150ms ease",
+                }}
+              >
+                Apply Filter
+              </button>
+            </div>
+
+            {/* Months by Year */}
+            {byYear.size > 0 && (
+              <>
+                <div style={divider} />
+                <p style={sectionLabel}>Months</p>
+                {[...byYear.entries()]
+                  .sort(([a], [b]) => b - a)
+                  .map(([year, months]) => {
+                    const isExpanded = expandedYears.has(year);
+                    return (
+                      <div key={year}>
+                        <button
+                          onClick={() => toggleYear(year)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            width: "100%",
+                            padding: "5px 12px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            borderRadius: "5px",
+                            background: "transparent",
+                            color: "hsl(var(--foreground))",
+                            border: "none",
+                            outline: "none",
+                            transition: "background 120ms ease",
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "hsl(var(--muted)/0.3)")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <span>{year}</span>
+                          <span style={{ fontSize: "10px", opacity: 0.5 }}>{isExpanded ? "▲" : "▼"}</span>
+                        </button>
+                        {isExpanded && (
+                          <div style={{ paddingLeft: "8px" }}>
+                            {[...months].sort((a, b) => b - a).map(mo => {
+                              const ym = `${year}-${String(mo).padStart(2, "0")}`;
+                              return (
+                                <button
+                                  key={ym}
+                                  style={{ ...itemStyle(isActive(ym)), paddingLeft: "16px" }}
+                                  onClick={() => select(ym)}
+                                >
+                                  {MONTH_NAMES[mo - 1].slice(0, 3)} {year}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </>
+            )}
+
+            {/* Quarters */}
+            {sortedQuarters.length > 0 && (
+              <>
+                <div style={divider} />
+                <p style={sectionLabel}>Quarters</p>
+                {sortedQuarters.map(q => (
+                  <button key={q} style={itemStyle(isActive(q))} onClick={() => select(q)}>
+                    {q.replace("-", " ")}
+                  </button>
+                ))}
+              </>
+            )}
+
+            {/* Financial Years */}
+            {sortedFY.length > 0 && (
+              <>
+                <div style={divider} />
+                <p style={sectionLabel}>Financial Year</p>
+                {sortedFY.map(fy => {
+                  const m = fy.match(/^FY(\d{4})-(\d{2})$/);
+                  const label = m ? `FY ${m[1]}-${m[2]}` : fy;
+                  return (
+                    <button key={fy} style={itemStyle(isActive(fy))} onClick={() => select(fy)}>
+                      {label}
+                    </button>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ── Engine period mapper ───────────────────────────────────────
-// Maps DATE_FILTER_OPTIONS values → engine-compatible periods.
-// [FIX-9] Engine now natively supports "all", "YYYY-MM", "YYYY", AND "Q1-2026" style quarters.
+// Maps filter values → engine-compatible periods.
+// Engine natively supports: "all", "YYYY-MM", "Q#-YYYY".
+// Quick/custom filters fall back to "all" — client-side matchesFilter handles them.
 const toEnginePeriod = (filter: string): string => {
   if (filter === "all")               return "all";
   if (/^\d{4}-\d{2}$/.test(filter))  return filter; // "2026-03"
-  if (/^\d{4}$/.test(filter))        return filter; // "2025" / "2026"
   if (/^Q[1-4]-\d{4}$/.test(filter)) return filter; // "Q1-2026" — engine handles quarter expansion
-  return "all"; // unknown format — safe fallback
+  // FY filter: pass start year to engine as best-effort; matchesFilter handles precise FY logic
+  if (/^FY\d{4}-\d{2}$/.test(filter)) {
+    const m = filter.match(/^FY(\d{4})-(\d{2})$/);
+    if (m) return m[1]; // e.g. "2025"
+  }
+  // Quick / custom filters: engine doesn't know these — fall back to "all"
+  return "all";
 };
 
 // ── Shared engine health badge ─────────────────────────────────
@@ -189,7 +643,7 @@ const SalesReport = () => {
 
   // ── Period filter → then customer + status filter ───────────
   const periodFiltered = useMemo(() =>
-    invoicesWithPayments.filter(inv => matchesFilter(parseDate(inv.invoiceDate), period)),
+    invoicesWithPayments.filter(inv => matchesFilter(parseDate(inv.invoiceDate), period, inv.invoiceDate)),
   [invoicesWithPayments, period]);
 
   const filteredInvoices = useMemo(() =>
@@ -316,7 +770,7 @@ const SalesReport = () => {
             </SelectContent>
           </Select>
           {/* Period filter */}
-          <DateFilter value={period} onChange={setPeriod} />
+          <DateFilter value={period} onChange={setPeriod} dates={invoicesWithPayments.map(i => i.invoiceDate)} />
         </div>
       </div>
 
@@ -735,7 +1189,7 @@ const PurchasesReport = () => {
   }, []);
 
   const filtered = useMemo(() =>
-    allPurchases.filter(p => matchesFilter(parseDate(p.purchase_date), period)),
+    allPurchases.filter(p => matchesFilter(parseDate(p.purchase_date), period, p.purchase_date)),
   [allPurchases, period]);
 
   const totalTaxable = filtered.reduce((s, p) => s + (p.taxable_amount ?? 0), 0);
@@ -818,7 +1272,7 @@ const PurchasesReport = () => {
             {filtered.length} purchase record{filtered.length !== 1 ? "s" : ""} in period
           </p>
         </div>
-        <DateFilter value={period} onChange={setPeriod} />
+        <DateFilter value={period} onChange={setPeriod} dates={allPurchases.map(p => p.purchase_date)} />
       </div>
 
       {/* ── KPI Cards ───────────────────────────────────────────── */}
@@ -1168,7 +1622,7 @@ const ExpensesReport = () => {
   }, []);
 
   const filtExpenses = useMemo(() =>
-    allExpenses.filter(e => matchesFilter(parseDate(e.expense_date), period)),
+    allExpenses.filter(e => matchesFilter(parseDate(e.expense_date), period, e.expense_date)),
   [allExpenses, period]);
 
   // Group by the 5 known categories — any unrecognised row goes to "Other"
@@ -1259,7 +1713,7 @@ const ExpensesReport = () => {
               Total expenses in period · {months.length} month{months.length !== 1 ? "s" : ""} covered
             </p>
           </div>
-          <DateFilter value={period} onChange={setPeriod} />
+          <DateFilter value={period} onChange={setPeriod} dates={allExpenses.map(e => e.expense_date)} />
         </div>
         {/* Subtle divider */}
         <div style={{ height: "1px", background: "hsl(var(--border)/0.5)" }} />
@@ -1582,14 +2036,28 @@ const PnLReport = () => {
     load();
   }, []);
 
+  // ── Purchases + Expenses for client-side KPI fallback ────────
+  // Loaded here ONLY to support quick/custom filters (today, this-week, this-month, last-month,
+  // custom:*) where toEnginePeriod() falls back to "all" and the engine cannot filter precisely.
+  // These arrays are NOT used to replace engine totals for engine-native periods.
+  const [pnlPurchases, setPnlPurchases] = useState<any[]>([]);
+  const [pnlExpenses,  setPnlExpenses]  = useState<ExpenseRow[]>([]);
+
+  useEffect(() => {
+    Promise.all([getPurchases(), getExpenses()])
+      .then(([pur, exp]) => { setPnlPurchases(pur); setPnlExpenses(exp); })
+      .catch(err => console.error("[PnLReport] purchases/expenses fetch failed:", err));
+  }, []);
+
   // ── Invoice count for KPI sub-labels (display only, not financial) ──
   const filtInvoices = useMemo(() =>
-    pnlInvoices.filter(inv => matchesFilter(parseDate(inv.invoiceDate), period)), [pnlInvoices, period]);
+    pnlInvoices.filter(inv => matchesFilter(parseDate(inv.invoiceDate), period, inv.invoiceDate)), [pnlInvoices, period]);
 
   // ── Inventory context for COGS formula card (display only) ──
   const filtTxns = useMemo(() => invTxns.filter(t => {
-    const d = parseDate(t.transaction_date ?? t.created_at?.slice(0, 10));
-    return matchesFilter(d, period);
+    const rawDate = t.transaction_date ?? t.created_at?.slice(0, 10);
+    const d = parseDate(rawDate);
+    return matchesFilter(d, period, rawDate);
   }), [invTxns, period]);
 
   const inventoryIn = filtTxns
@@ -1620,30 +2088,61 @@ const PnLReport = () => {
     freight:    opexByCategory["Freight"]    ?? 0,
   };
 
+  // ── Client-side KPI fallback for quick/custom filters ────────
+  // When toEnginePeriod(period) === "all" but period !== "all", the engine runs all-time
+  // and its metrics cannot be used for KPI cards. Compute from filtered store arrays instead.
+  const useClientSideKPIs = toEnginePeriod(period) === "all" && period !== "all";
+
+  const filtPnlPurchases = useMemo(() =>
+    pnlPurchases.filter((p: any) => matchesFilter(parseDate(p.purchase_date), period, p.purchase_date)),
+    [pnlPurchases, period]);
+
+  const filtPnlExpenses = useMemo(() =>
+    pnlExpenses.filter(e => matchesFilter(parseDate(e.expense_date), period, e.expense_date)),
+    [pnlExpenses, period]);
+
+  // Client-side P&L values — used ONLY when useClientSideKPIs is true
+  const csGrossSales  = useMemo(() => filtInvoices.reduce((s, i) => s + (i.totalAmount ?? 0), 0), [filtInvoices]);
+  const csGstOnSales  = useMemo(() => filtInvoices.reduce((s, i) => {
+    // Derive GST from totalAmount — invoices store totalAmount inclusive of GST (18%)
+    // Use same ratio the engine uses: gst = totalAmount * 18/118
+    return s + ((i.totalAmount ?? 0) * 18 / 118);
+  }, 0), [filtInvoices]);
+  const csRevenue     = csGrossSales - csGstOnSales;
+  const csPurchasesVal= useMemo(() => filtPnlPurchases.reduce((s: number, p: any) => s + (p.total_amount ?? 0), 0), [filtPnlPurchases]);
+  const csTotalOpex   = useMemo(() => filtPnlExpenses.reduce((s, e) => s + (e.amount ?? 0), 0), [filtPnlExpenses]);
+  const csCogs        = Math.max(0, csPurchasesVal - closingStockValue);
+  const csGrossProfit = csRevenue - csCogs;
+  const csNetProfit   = csGrossProfit - csTotalOpex;
+
   // [REF-3] ACCOUNTING VIEW - P&L
-  // ALL financial totals sourced exclusively from engine.metrics.accrual.
-  // No UI calculations. No reduce(). No store re-aggregation.
-  const grossSales    = engine?.metrics.accrual.grossSales       ?? 0;
-  const creditNotesPnL= engine?.metrics.accrual.creditNotesTotal ?? 0;
-  const revenue       = engine?.metrics.accrual.revenue          ?? 0;
-  const purchasesVal  = engine?.metrics.accrual.purchases        ?? 0;
-  const closingStock  = engine?.metrics.accrual.closingStock      ?? 0;
-  const openingStock  = engine?.metrics.accrual.openingStock      ?? 0;
-  const cogs          = engine?.metrics.accrual.cogs              ?? 0;
-  const totalOpex     = engine?.metrics.accrual.opex              ?? 0;
-  const grossProfit   = engine?.metrics.accrual.grossProfit       ?? 0;
-  const netProfit     = engine?.metrics.accrual.netProfit         ?? 0;
+  // For engine-native periods (all, YYYY-MM, Q#-YYYY): ALL totals from engine.metrics.accrual.
+  // For quick/custom filters: fall back to client-side computed values above.
+  // No mixing — each KPI uses one source consistently per period type.
+  const grossSales    = useClientSideKPIs ? csGrossSales   : (engine?.metrics.accrual.grossSales       ?? 0);
+  const creditNotesPnL= useClientSideKPIs ? 0               : (engine?.metrics.accrual.creditNotesTotal ?? 0);
+  const revenue       = useClientSideKPIs ? csRevenue       : (engine?.metrics.accrual.revenue          ?? 0);
+  const purchasesVal  = useClientSideKPIs ? csPurchasesVal  : (engine?.metrics.accrual.purchases        ?? 0);
+  const closingStock  = useClientSideKPIs ? closingStockValue : (engine?.metrics.accrual.closingStock    ?? 0);
+  const openingStock  = useClientSideKPIs ? 0               : (engine?.metrics.accrual.openingStock      ?? 0);
+  const cogs          = useClientSideKPIs ? csCogs          : (engine?.metrics.accrual.cogs              ?? 0);
+  const totalOpex     = useClientSideKPIs ? csTotalOpex     : (engine?.metrics.accrual.opex              ?? 0);
+  const grossProfit   = useClientSideKPIs ? csGrossProfit   : (engine?.metrics.accrual.grossProfit       ?? 0);
+  const netProfit     = useClientSideKPIs ? csNetProfit     : (engine?.metrics.accrual.netProfit         ?? 0);
   // [GST-AUDIT] Pull all four GST waterfall values from engine — no local recalculation.
+  // For quick/custom filters (useClientSideKPIs=true), engine ran all-time so use client-side estimates.
   // grossGstCollected : GST on invoices before credit-note reversal
   // cnGstReversal     : GST reversed by credit notes (expect ₹9,565.62 with current data)
   // gstCollected      : net output GST = grossGstCollected − cnGstReversal
   //                     (engine computes this directly — does NOT use GL.getBalance which
   //                      would also subtract purchase ITC and double-count it in gstDelta)
   // gstPaid           : input ITC from purchases (separate DR GST_PAYABLE / CR CASH postings)
-  const grossGstCollected = engine?.metrics.accrual.grossGstCollected ?? 0;
-  const cnGstReversal     = engine?.metrics.accrual.cnGstReversal     ?? 0;
-  const gstCollected      = engine?.metrics.accrual.gstCollected      ?? 0;
-  const gstPaid           = engine?.metrics.accrual.gstPaid           ?? 0;
+  const grossGstCollected = useClientSideKPIs ? csGstOnSales                            : (engine?.metrics.accrual.grossGstCollected ?? 0);
+  const cnGstReversal     = useClientSideKPIs ? 0                                       : (engine?.metrics.accrual.cnGstReversal     ?? 0);
+  const gstCollected      = useClientSideKPIs ? csGstOnSales                            : (engine?.metrics.accrual.gstCollected      ?? 0);
+  const gstPaid           = useClientSideKPIs
+    ? filtPnlPurchases.reduce((s: number, p: any) => s + (p.gst_amount ?? (p.total_amount ?? 0) * 18 / 118), 0)
+    : (engine?.metrics.accrual.gstPaid ?? 0);
 
   // Payable/surplus determination — single source of truth, no inline arithmetic in JSX.
   // gstDelta > 0  → net GST payable to government
@@ -1715,7 +2214,7 @@ const PnLReport = () => {
               </div>
             )}
           </div>
-          <DateFilter value={period} onChange={setPeriod} />
+          <DateFilter value={period} onChange={setPeriod} dates={pnlInvoices.map(i => i.invoiceDate)} />
         </div>
         <div style={{ height: "1px", background: "hsl(var(--border)/0.5)" }} />
       </div>
@@ -2092,7 +2591,7 @@ const CashFlowReport = () => {
   }, []);
 
   const filtPayments = useMemo(() =>
-    allPaymentsData.filter(p => matchesFilter(parseDate(p.paymentDate), period)), [allPaymentsData, period]);
+    allPaymentsData.filter(p => matchesFilter(parseDate(p.paymentDate), period, p.paymentDate)), [allPaymentsData, period]);
 
   // ── Purchases — async from Supabase ──────────────────────────
   const [cfPurchases, setCfPurchases] = useState<any[]>([]);
@@ -2139,11 +2638,11 @@ const CashFlowReport = () => {
   }, []);
 
   const filtPurchases = useMemo(() =>
-    cfPurchases.filter((p: any) => matchesFilter(parseDate(p.purchase_date), period)), [cfPurchases, period]);
+    cfPurchases.filter((p: any) => matchesFilter(parseDate(p.purchase_date), period, p.purchase_date)), [cfPurchases, period]);
   const purchasesOut = filtPurchases.reduce((s: number, p: any) => s + (p.total_amount ?? 0), 0);
 
   const filtExpensesCF = useMemo(() =>
-    cfExpenses.filter(e => matchesFilter(parseDate(e.expense_date), period)), [cfExpenses, period]);
+    cfExpenses.filter(e => matchesFilter(parseDate(e.expense_date), period, e.expense_date)), [cfExpenses, period]);
 
   const sumExpCF = (cat: string) =>
     filtExpensesCF.filter(e => e.category === cat).reduce((s, e) => s + (e.amount ?? 0), 0);
@@ -2174,11 +2673,15 @@ const CashFlowReport = () => {
   const storeTotalOut = purchasesOut + totalExpensesOut;
 
   // [REF-4] CASH VIEW - CASH FLOW
-  // Pure cash-based metrics from the financial engine.
-  // Ensures consistency with Dashboard and P&L.
-  const totalIn      = engine?.metrics.cash.inflow      ?? 0;
-  const totalOut     = engine?.metrics.cash.outflow     ?? 0;
-  const netCashFlow  = engine?.metrics.cash.netCashFlow ?? 0;
+  // For engine-native periods (all, YYYY-MM, Q#-YYYY), use engine.metrics.cash for consistency.
+  // For quick/custom filters (today, this-week, this-month, last-month, custom:*), the engine
+  // falls back to "all" via toEnginePeriod(), so we use the already-filtered store arrays instead.
+  // storeTotalIn / storeTotalOut are computed from filtPayments / filtPurchases / filtExpensesCF
+  // which are correctly filtered by matchesFilter for ALL filter types.
+  const useClientSideKPIs = toEnginePeriod(period) === "all" && period !== "all";
+  const totalIn      = useClientSideKPIs ? storeTotalIn  : (engine?.metrics.cash.inflow      ?? 0);
+  const totalOut     = useClientSideKPIs ? storeTotalOut : (engine?.metrics.cash.outflow     ?? 0);
+  const netCashFlow  = totalIn - totalOut;
   const isPositive   = netCashFlow >= 0;
 
   const allMonths = useMemo(() => {
@@ -2287,7 +2790,15 @@ const CashFlowReport = () => {
               </button>
             ))}
           </div>
-          <DateFilter value={period} onChange={setPeriod} />
+          <DateFilter
+              value={period}
+              onChange={setPeriod}
+              dates={[
+                ...allPaymentsData.map(p => p.paymentDate),
+                ...cfPurchases.map((p: any) => p.purchase_date),
+                ...cfExpenses.map(e => e.expense_date),
+              ].filter(Boolean)}
+            />
         </div>
       </div>
 
